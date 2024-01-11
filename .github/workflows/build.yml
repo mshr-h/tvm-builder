@@ -1,0 +1,66 @@
+name: Build Apache TVM
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semantic version (e.g., 0.14.0)"
+        required: true
+      repository:
+        description: "Name of a target repository"
+        default: 'apache/tvm'
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  VERSION:
+    |- # Enter release tag name or version in workflow_dispatch. Recent version if not specified
+    ${{ github.event.release.tag_name || github.event.inputs.version || '0.14.0' }}
+  REPOSITORY:
+    ${{ github.event.inputs.repository || 'apache/tvm' }}
+  
+jobs:
+  build-linux:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ env.REPOSITORY }}
+          ref: v${{ env.VERSION }}
+          submodules: recursive
+          github-server-url: https://github.com
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev build-essential libedit-dev libxml2-dev
+          python -m pip install -U numpy cmake ninja wheel
+      - name: Build runtime
+        run: |
+          cmake -S . -B build -G Ninja -DUSE_LLVM="llvm-config --link-staic" -DUSE_MLIR=ON -DUSE_RELAY_DEBUG=ON
+          cmake --build build
+          python -m pip wheel archive python/
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: "tvm-*.whl"
+          tag_name: ${{ env.VERSION }}
+
+  release:
+    needs: [build-linux]
+    runs-on: ubuntu-latest
+    steps:  
+      - uses: softprops/action-gh-release@v1
+        with:
+          name: Apache TVM v${{ env.VERSION }}
+          tag_name: ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
