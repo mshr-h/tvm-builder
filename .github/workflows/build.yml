@@ -26,7 +26,7 @@ env:
   
 jobs:
   build-linux:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -52,7 +52,8 @@ jobs:
           python -m pip install -U numpy cmake ninja wheel
       - name: CMake
         run: |
-          cmake -S . -B build -G Ninja -DUSE_LLVM='llvm-config --link-static' \
+          cmake -S . -B build -G Ninja \
+            -DUSE_LLVM='llvm-config --link-static' \
             -DUSE_MLIR=ON -DUSE_RELAY_DEBUG=ON \
             -DUSE_CUDA=ON -DUSE_TENSORRT_CODEGEN=ON
       - name: Build python package
@@ -97,7 +98,7 @@ jobs:
         with:
           files: "tvm-*.whl"
           tag_name: ${{ env.VERSION }}
-
+        
   release:
     needs: [build-linux]
     runs-on: ubuntu-latest
