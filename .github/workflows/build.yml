@@ -53,7 +53,7 @@ jobs:
           python -m pip install -U numpy cmake ninja wheel
       - name: Build
         run: |
-          cmake -S . -B build -G Ninja -DUSE_LLVM='llvm-config --link-static' -DUSE_MLIR=ON -DUSE_RELAY_DEBUG=ON -DCUDA=$${{ matrix.cuda }}
+          cmake -S . -B build -G Ninja -DUSE_LLVM='llvm-config --link-static' -DUSE_MLIR=ON -DUSE_RELAY_DEBUG=ON -DCUDA=${{ matrix.cuda }}
           cmake --build build
           python -m pip wheel archive python/
       - uses: softprops/action-gh-release@v1
