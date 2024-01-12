@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to build (default: 0.14.0)"
-        required: false
+        description: "Semantic version to build (e.g. 0.14.0)"
+        required: true
       repository:
         description: "Name of a target repository"
         default: 'apache/tvm'
