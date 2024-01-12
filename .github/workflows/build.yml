@@ -52,11 +52,13 @@ jobs:
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
             build-essential libedit-dev libxml2-dev llvm-dev
           python -m pip install -U numpy cmake ninja wheel
-      - name: Build
+      - name: CMake
         run: |
           cmake -S . -B build -G Ninja -DUSE_LLVM='llvm-config --link-static' \
             -DUSE_MLIR=ON -DUSE_RELAY_DEBUG=ON \
             -DUSE_CUDA=${{ matrix.cuda }} -DUSE_TENSORRT_CODEGEN=${{ matrix.cuda }}
+      - name: Build python package
+        run: |
           cmake --build build
           python -m pip wheel archive python/
       - uses: softprops/action-gh-release@v1
