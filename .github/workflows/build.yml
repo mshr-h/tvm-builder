@@ -64,6 +64,40 @@ jobs:
           files: "tvm-*.whl"
           tag_name: ${{ env.VERSION }}
 
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ env.REPOSITORY }}
+          ref: v${{ env.VERSION }}
+          submodules: recursive
+          github-server-url: https://github.com
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          brew install llvm
+          python -m pip install -U numpy cmake ninja wheel
+      - name: CMake
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DUSE_LLVM="$(brew --prefix llvm)/bin/llvm-config --link-static" \
+            -DUSE_MLIR=ON -DUSE_RELAY_DEBUG=ON
+      - name: Build python package
+        run: |
+          cmake --build build
+          python -m pip wheel archive python/
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: "tvm-*.whl"
+          tag_name: ${{ env.VERSION }}
+
   release:
     needs: [build-linux]
     runs-on: ubuntu-latest
