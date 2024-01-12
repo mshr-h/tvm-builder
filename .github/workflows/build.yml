@@ -100,7 +100,7 @@ jobs:
           tag_name: ${{ env.VERSION }}
         
   release:
-    needs: [build-linux]
+    needs: [build-linux, build-macos]
     runs-on: ubuntu-latest
     steps:  
       - uses: softprops/action-gh-release@v1
