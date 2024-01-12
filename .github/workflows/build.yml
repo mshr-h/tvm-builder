@@ -23,7 +23,7 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version }}
   REPOSITORY:
     ${{ github.event.inputs.repository }}
-  
+
 jobs:
   build-linux:
     runs-on: ubuntu-latest
@@ -98,7 +98,7 @@ jobs:
         with:
           files: "tvm-*.whl"
           tag_name: ${{ env.VERSION }}
-        
+
   release:
     needs: [build-linux, build-macos]
     runs-on: ubuntu-latest
