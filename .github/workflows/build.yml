@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Semantic version (e.g., 0.14.0)"
-        required: true
+        description: "Version to build (default: 0.14.0)"
+        required: false
       repository:
         description: "Name of a target repository"
         default: 'apache/tvm'
@@ -20,9 +20,9 @@ permissions:
 env:
   VERSION:
     |- # Enter release tag name or version in workflow_dispatch. Recent version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '0.14.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version }}
   REPOSITORY:
-    ${{ github.event.inputs.repository || 'apache/tvm' }}
+    ${{ github.event.inputs.repository }}
   
 jobs:
   build-linux:
