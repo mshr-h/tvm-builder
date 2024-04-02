@@ -9,6 +9,9 @@ on:
 permissions:
   contents: write
 
+env:
+  CUDA_VERSION: 12.2.0
+
 jobs:
   build-linux:
     runs-on: ubuntu-latest
@@ -27,7 +30,7 @@ jobs:
       - name: Install cuda-toolkit
         uses: Jimver/cuda-toolkit@v0.2.14
         with:
-          cuda: 12.2
+          cuda: ${{ env.CUDA_VERSION }}
           method: network
       - uses: actions/setup-python@v4
         with:
