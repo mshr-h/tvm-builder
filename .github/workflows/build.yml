@@ -104,4 +104,4 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           name: Apache TVM Nightly
-          tag_name: ${{ jobs.build-linux.outputs.hash }}
+          tag_name: ${{ needs.build-linux.outputs.hash }}
