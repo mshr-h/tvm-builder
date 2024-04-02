@@ -1,28 +1,11 @@
 name: Build Apache TVM
 
 on:
-  release:
-    types:
-      - published
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Semantic version to build (e.g. 0.14.0)"
-        required: true
-      repository:
-        description: "Name of a target repository"
-        default: 'apache/tvm'
-        required: false
+  schedule:
+    - cron: "* 17 * * *"
 
 permissions:
   contents: write
-
-env:
-  VERSION:
-    |- # Enter release tag name or version in workflow_dispatch. Recent version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version }}
-  REPOSITORY:
-    ${{ github.event.inputs.repository }}
 
 jobs:
   build-linux:
@@ -32,15 +15,17 @@ jobs:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
     steps:
-      - uses: actions/checkout@v3
+      - name: print $GITHUB_SHA
+        run: echo $GITHUB_SHA
+      - uses: actions/checkout@v4
         with:
-          repository: ${{ env.REPOSITORY }}
-          ref: v${{ env.VERSION }}
+          repository: 'apache/tvm'
           submodules: recursive
           github-server-url: https://github.com
       - name: Install cuda-toolkit
-        uses: Jimver/cuda-toolkit@v0.2.13
+        uses: Jimver/cuda-toolkit@v0.2.14
         with:
+          cuda: 12.2
           method: network
       - uses: actions/setup-python@v4
         with:
@@ -63,7 +48,7 @@ jobs:
       - uses: softprops/action-gh-release@v1
         with:
           files: "tvm-*.whl"
-          tag_name: ${{ env.VERSION }}
+          tag_name: $(git rev-parse --short HEAD)
 
   build-macos:
     runs-on: macos-latest
@@ -72,10 +57,9 @@ jobs:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
-          repository: ${{ env.REPOSITORY }}
-          ref: v${{ env.VERSION }}
+          repository: 'apache/tvm'
           submodules: recursive
           github-server-url: https://github.com
       - uses: actions/setup-python@v4
@@ -97,7 +81,7 @@ jobs:
       - uses: softprops/action-gh-release@v1
         with:
           files: "tvm-*.whl"
-          tag_name: ${{ env.VERSION }}
+          tag_name: $(git rev-parse --short HEAD)
 
   release:
     needs: [build-linux, build-macos]
