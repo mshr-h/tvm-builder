@@ -23,7 +23,7 @@ jobs:
           submodules: recursive
           github-server-url: https://github.com
       - name: print $GITHUB_SHA
-        run: echo $GITHUB_SHA
+        run: echo $(git rev-parse --short HEAD)
       - name: Install cuda-toolkit
         uses: Jimver/cuda-toolkit@v0.2.14
         with:
