@@ -17,13 +17,13 @@ jobs:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
     steps:
-      - name: print $GITHUB_SHA
-        run: echo $GITHUB_SHA
       - uses: actions/checkout@v4
         with:
           repository: 'apache/tvm'
           submodules: recursive
           github-server-url: https://github.com
+      - name: print $GITHUB_SHA
+        run: echo $GITHUB_SHA
       - name: Install cuda-toolkit
         uses: Jimver/cuda-toolkit@v0.2.14
         with:
