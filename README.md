@@ -3,5 +3,5 @@ Build Apache TVM with GitHub Actions
 
 ## Todos
 
-- Add Google Colab notebook exmample
-- Add usage
+- [ ] Add Google Colab notebook exmample
+- [ ] Add usage
