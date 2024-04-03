@@ -53,10 +53,10 @@ jobs:
         run: |
           cmake --build build
           python -m pip wheel archive python/
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v2
         with:
           files: "tvm-*.whl"
-          tag_name: ${{ steps.hash.outputs.HASH }}
+          tag_name: nightly
 
   build-macos:
     runs-on: macos-latest
@@ -89,10 +89,10 @@ jobs:
         run: |
           cmake --build build
           python -m pip wheel archive python/
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v2
         with:
           files: "tvm-*.whl"
-          tag_name: ${{ steps.hash.outputs.HASH }}
+          tag_name: nightly
 
   release:
     needs: [build-linux, build-macos]
@@ -104,4 +104,4 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           name: Apache TVM Nightly
-          tag_name: ${{ needs.build-linux.outputs.hash }}
+          tag_name: nightly
