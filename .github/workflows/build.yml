@@ -105,3 +105,4 @@ jobs:
         with:
           name: Apache TVM Nightly
           tag_name: nightly
+          body: "tvm@$HASH"
