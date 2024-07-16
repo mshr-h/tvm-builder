@@ -1,0 +1,134 @@
+name: Build Apache TVM
+
+on:
+  push:
+    branches: 'main'
+  schedule:
+    - cron: "* 17 * * *"
+
+permissions:
+  contents: write
+
+env:
+  CUDA_VERSION: 12.2.0
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+    outputs:
+      hash: ${{ steps.hash.outputs.HASH }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 'apache/tvm'
+          submodules: recursive
+          github-server-url: https://github.com
+      - name: Retrieve hash
+        id: hash
+        run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Install cuda-toolkit
+        uses: Jimver/cuda-toolkit@v0.2.14
+        with:
+          cuda: ${{ env.CUDA_VERSION }}
+          method: network
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
+            build-essential libedit-dev libxml2-dev llvm-dev
+          python -m pip install -U pip numpy cmake ninja wheel
+      - name: CMake
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DUSE_LLVM='llvm-config --link-static' \
+            -DUSE_MLIR=ON -DUSE_RELAY_DEBUG=ON \
+            -DUSE_CUDA=ON -DUSE_TENSORRT_CODEGEN=ON
+      - name: Build python package
+        run: |
+          cmake --build build
+          python -m pip wheel archive python/
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: "tvm-*.whl"
+          tag_name: nightly
+
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 'apache/tvm'
+          submodules: recursive
+          github-server-url: https://github.com
+      - name: Retrieve hash
+        id: hash
+        run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          brew install llvm
+          python -m pip install -U pip numpy cmake ninja wheel
+      - name: CMake
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DUSE_LLVM="$(brew --prefix llvm)/bin/llvm-config --link-static" \
+            -DUSE_MLIR=ON -DUSE_RELAY_DEBUG=ON
+      - name: Build python package
+        run: |
+          cmake --build build
+          python -m pip wheel archive python/
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: "tvm-*.whl"
+          tag_name: nightly
+  
+  build-windows:
+    runs-on: windows-2019
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 'apache/tvm'
+          submodules: recursive
+          github-server-url: https://github.com
+      - name: Set up environment
+        uses: ./.github/actions/setup
+      - name: Conda Build
+        shell: cmd /C call {0}
+        run: >-
+          conda build --output-folder=conda/pkg conda/recipe &&
+          conda install tvm -c ./conda/pkg
+      - name: Test
+        shell: cmd /C call {0}
+        run: >-
+          python -m pytest -v tests/python/all-platform-minimal-test
+
+  release:
+    needs: [build-linux, build-macos]
+    runs-on: ubuntu-latest
+    steps:  
+      - name: Retrieve hash
+        id: hash
+        run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - uses: softprops/action-gh-release@v2
+        env:
+          HASH: ${{ steps.hash.outputs.HASH }}
+        with:
+          name: Apache TVM Nightly
+          tag_name: nightly
+          body: "tvm@$HASH"
