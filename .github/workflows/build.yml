@@ -101,6 +101,8 @@ jobs:
       matrix:
         python-version: ['3.9']
     steps:
+      - name: Support longpaths
+        run: git config --system core.longpaths true
       - uses: actions/checkout@v4
         with:
           repository: 'apache/tvm'
