@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
     outputs:
       hash: ${{ steps.hash.outputs.HASH }}
     steps:
@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
         with:
@@ -108,8 +108,36 @@ jobs:
           repository: 'apache/tvm'
           submodules: recursive
           github-server-url: https://github.com
-      - name: Set up environment
-        uses: ./.github/actions/setup
+      - uses: conda-incubator/setup-miniconda@v3
+        continue-on-error: true
+        id: conda1
+        with:
+          activate-environment: tvm-build
+          channel-priority: strict
+          environment-file: conda/build-environment.yaml
+          auto-activate-base: false
+          conda-solver: classic
+          use-only-tar-bz2: true
+          python-version: 3.9
+          condarc-file: conda/condarc
+      - uses: conda-incubator/setup-miniconda@v3
+        if: steps.conda1.outcome == 'failure'
+        with:
+          activate-environment: tvm-build
+          channel-priority: strict
+          environment-file: conda/build-environment.yaml
+          auto-activate-base: false
+          conda-solver: classic
+          use-only-tar-bz2: true
+          python-version: 3.9
+          condarc-file: conda/condarc
+      - name: Conda info
+        shell: pwsh
+        run: |
+          conda info
+          conda list
+          conda info --envs
+          conda list --name base
       - name: Conda Build
         shell: cmd /C call {0}
         run: >-
@@ -130,8 +158,36 @@ jobs:
           repository: 'apache/tvm'
           submodules: recursive
           github-server-url: https://github.com
-      - name: Set up environment
-        uses: ./.github/actions/setup
+      - uses: conda-incubator/setup-miniconda@v3
+        continue-on-error: true
+        id: conda1
+        with:
+          activate-environment: tvm-build
+          channel-priority: strict
+          environment-file: conda/build-environment.yaml
+          auto-activate-base: false
+          conda-solver: classic
+          use-only-tar-bz2: true
+          python-version: 3.9
+          condarc-file: conda/condarc
+      - uses: conda-incubator/setup-miniconda@v3
+        if: steps.conda1.outcome == 'failure'
+        with:
+          activate-environment: tvm-build
+          channel-priority: strict
+          environment-file: conda/build-environment.yaml
+          auto-activate-base: false
+          conda-solver: classic
+          use-only-tar-bz2: true
+          python-version: 3.9
+          condarc-file: conda/condarc
+      - name: Conda info
+        shell: pwsh
+        run: |
+          conda info
+          conda list
+          conda info --envs
+          conda list --name base
       - name: Build static TVM runtime
         shell: bash -l {0}
         run: |
