@@ -120,6 +120,26 @@ jobs:
         run: >-
           python -m pytest -v tests/python/all-platform-minimal-test
 
+  build-windows-static-runtime:
+    runs-on: windows-2019
+    steps:
+      - name: Support longpaths
+        run: git config --system core.longpaths true
+      - uses: actions/checkout@v4
+        with:
+          repository: 'apache/tvm'
+          submodules: recursive
+          github-server-url: https://github.com
+      - name: Set up environment
+        uses: ./.github/actions/setup
+      - name: Build static TVM runtime
+        shell: bash -l {0}
+        run: |
+          tests/scripts/task_config_build_static.sh build
+          cd build
+          cmake .. -A x64 -DCMAKE_CONFIGURATION_TYPES="Release"
+          cmake --build . --config Release --target runtime
+
   release:
     needs: [build-linux, build-macos]
     runs-on: ubuntu-latest
