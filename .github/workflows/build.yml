@@ -138,6 +138,8 @@ jobs:
           conda list
           conda info --envs
           conda list --name base
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3.18
       - name: Conda Build
         shell: cmd /C call {0}
         run: >-
