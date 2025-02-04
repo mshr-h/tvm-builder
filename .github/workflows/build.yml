@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 env:
-  CUDA_VERSION: 12.2.0
+  CUDA_VERSION: 12.8.0
 
 jobs:
   build-linux:
@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
     outputs:
       hash: ${{ steps.hash.outputs.HASH }}
     steps:
@@ -31,7 +31,7 @@ jobs:
         id: hash
         run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Install cuda-toolkit
-        uses: Jimver/cuda-toolkit@v0.2.14
+        uses: Jimver/cuda-toolkit@v0.2.21
         with:
           cuda: ${{ env.CUDA_VERSION }}
           method: network
@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
         with:
