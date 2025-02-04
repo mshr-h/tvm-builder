@@ -41,12 +41,12 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
-            build-essential libedit-dev libxml2-dev llvm-dev libpolly-18-dev libzstd-dev
+            build-essential libedit-dev libxml2-dev llvm-dev
           python -m pip install -U pip numpy cmake ninja wheel
       - name: CMake
         run: |
           cmake -S . -B build -G Ninja \
-            -DUSE_LLVM='llvm-config --link-static' \
+            -DUSE_LLVM='llvm-config' \
             -DUSE_MLIR=ON -DUSE_RELAY_DEBUG=ON \
             -DUSE_CUDA=ON -DUSE_TENSORRT_CODEGEN=ON
       - name: Build python package
