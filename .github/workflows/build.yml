@@ -41,7 +41,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
-            build-essential libedit-dev libxml2-dev llvm-dev
+            build-essential libedit-dev libxml2-dev llvm-dev libpolly-18-dev
           python -m pip install -U pip numpy cmake ninja wheel
       - name: CMake
         run: |
