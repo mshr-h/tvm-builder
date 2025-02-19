@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: 'apache/tvm'
+          repository: 'mshr-h/tvm'
           submodules: recursive
           github-server-url: https://github.com
       - name: Retrieve hash
