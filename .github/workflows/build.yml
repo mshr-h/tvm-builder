@@ -42,7 +42,7 @@ jobs:
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
             build-essential libedit-dev libxml2-dev llvm-dev
-          python -m pip install -U pip numpy cmake ninja wheel
+          python -m pip install -U pip numpy cmake ninja wheel cython
       - name: CMake
         run: |
           cmake -S . -B build -G Ninja \
@@ -79,7 +79,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew install llvm
-          python -m pip install -U pip numpy cmake ninja wheel
+          python -m pip install -U pip numpy cmake ninja wheel cython
       - name: CMake
         run: |
           cmake -S . -B build -G Ninja \
