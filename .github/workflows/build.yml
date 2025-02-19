@@ -27,6 +27,8 @@ jobs:
           repository: 'mshr-h/tvm'
           submodules: recursive
           github-server-url: https://github.com
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
       - name: Retrieve hash
         id: hash
         run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
@@ -70,6 +72,8 @@ jobs:
           repository: 'apache/tvm'
           submodules: recursive
           github-server-url: https://github.com
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
       - name: Retrieve hash
         id: hash
         run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
