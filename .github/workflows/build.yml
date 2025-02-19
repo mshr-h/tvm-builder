@@ -42,7 +42,7 @@ jobs:
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
             build-essential libedit-dev libxml2-dev llvm-dev
-          python -m pip install -U pip numpy cmake ninja wheel cython
+          python -m pip install -U pip numpy cmake ninja wheel cython build setuptools
       - name: CMake
         run: |
           cmake -S . -B build -G Ninja \
@@ -52,7 +52,7 @@ jobs:
       - name: Build python package
         run: |
           cmake --build build
-          python -m pip wheel archive python/
+          python -m build
       - uses: softprops/action-gh-release@v2
         with:
           files: "tvm-*.whl"
@@ -79,7 +79,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew install llvm
-          python -m pip install -U pip numpy cmake ninja wheel cython
+          python -m pip install -U pip numpy cmake ninja wheel cython build setuptools
       - name: CMake
         run: |
           cmake -S . -B build -G Ninja \
@@ -88,7 +88,7 @@ jobs:
       - name: Build python package
         run: |
           cmake --build build
-          python -m pip wheel archive python/
+          python -m build
       - uses: softprops/action-gh-release@v2
         with:
           files: "tvm-*.whl"
