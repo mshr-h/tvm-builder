@@ -57,7 +57,7 @@ jobs:
           python -m build
       - name: Check if TVM can be imported
         run: |
-          python -m pip install pip install "$(readlink -f tvm-*.whl)"
+          python -m pip install pip install "$(find . -type f -name \"tvm-*.whl\")"
           python -c "import tvm; print(tvm.__version__)"
       - uses: softprops/action-gh-release@v2.2.2
         with:
@@ -99,7 +99,7 @@ jobs:
           python -m build
       - name: Check if TVM can be imported
         run: |
-          python -m pip install pip install "$(readlink -f tvm-*.whl)"
+          python -m pip install pip install "$(find . -type f -name \"tvm-*.whl\")"
           python -c "import tvm; print(tvm.__version__)"
       - uses: softprops/action-gh-release@v2.2.2
         with:
