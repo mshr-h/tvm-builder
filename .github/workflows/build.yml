@@ -114,8 +114,6 @@ jobs:
         id: hash
         run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - uses: softprops/action-gh-release@v2.2.2
-        env:
-          HASH: ${{ steps.hash.outputs.HASH }}
         with:
           name: Apache TVM Nightly
           tag_name: nightly
