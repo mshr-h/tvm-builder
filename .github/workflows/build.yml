@@ -54,7 +54,7 @@ jobs:
       - name: Build python package
         run: |
           cmake --build build
-          python -m pip wheel --no-binary python/
+          python -m pip wheel --no-binary python/ python/
       - name: Check if TVM can be imported
         run: |
           python -m pip install "$(find . -type f -name \"tvm-*.whl\")"
@@ -96,7 +96,7 @@ jobs:
       - name: Build python package
         run: |
           cmake --build build
-          python -m pip wheel --no-binary python/
+          python -m pip wheel --no-binary python/ python/
       - name: Check if TVM can be imported
         run: |
           python -m pip install "$(find . -type f -name \"tvm-*.whl\")"
