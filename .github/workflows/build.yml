@@ -24,16 +24,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: 'mshr-h/tvm'
+          repository: 'apache/tvm'
           submodules: recursive
           github-server-url: https://github.com
       - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@v1.2.17
       - name: Retrieve hash
         id: hash
         run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Install cuda-toolkit
-        uses: Jimver/cuda-toolkit@v0.2.21
+        uses: Jimver/cuda-toolkit@v0.2.23
         with:
           cuda: ${{ env.CUDA_VERSION }}
           method: network
@@ -55,7 +55,7 @@ jobs:
         run: |
           cmake --build build
           python -m build
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2.2.2
         with:
           files: "tvm-*.whl"
           tag_name: nightly
@@ -73,7 +73,7 @@ jobs:
           submodules: recursive
           github-server-url: https://github.com
       - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@v1.2.17
       - name: Retrieve hash
         id: hash
         run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
@@ -93,7 +93,7 @@ jobs:
         run: |
           cmake --build build
           python -m build
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2.2.2
         with:
           files: "tvm-*.whl"
           tag_name: nightly
@@ -105,10 +105,10 @@ jobs:
       - name: Retrieve hash
         id: hash
         run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2.2.2
         env:
           HASH: ${{ steps.hash.outputs.HASH }}
         with:
           name: Apache TVM Nightly
           tag_name: nightly
-          body: "tvm@$HASH"
+          body: "tvm@${{ steps.hash.outputs.HASH }}"
