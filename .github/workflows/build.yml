@@ -61,7 +61,7 @@ jobs:
           python -c "import tvm; print(tvm.__version__)"
       - uses: softprops/action-gh-release@v2.2.2
         with:
-          files: "tvm-*.whl"
+          files: "whl/tvm-*.whl"
           tag_name: nightly
 
   build-macos:
@@ -103,7 +103,7 @@ jobs:
           python -c "import tvm; print(tvm.__version__)"
       - uses: softprops/action-gh-release@v2.2.2
         with:
-          files: "tvm-*.whl"
+          files: "whl/tvm-*.whl"
           tag_name: nightly
 
   release:
@@ -112,11 +112,11 @@ jobs:
     steps:  
       - name: Retrieve hash
         id: hash
-        run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - uses: softprops/action-gh-release@v2.2.2
         env:
           HASH: ${{ steps.hash.outputs.HASH }}
         with:
           name: Apache TVM Nightly
           tag_name: nightly
-          body: "tvm@${{ steps.hash.outputs.HASH }}"
+          body: "tvm@${{ env.HASH }}"
