@@ -31,7 +31,7 @@ jobs:
         uses: hendrikmuhs/ccache-action@v1.2.17
       - name: Retrieve hash
         id: hash
-        run: echo "HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        run: echo "HASH=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Install cuda-toolkit
         uses: Jimver/cuda-toolkit@v0.2.23
         with:
@@ -114,4 +114,6 @@ jobs:
         with:
           name: Apache TVM Nightly
           tag_name: nightly
-          body: "tvm@${{ needs.build-linux.outputs.hash }}"
+          body: |
+            "tvm@${{ needs.build-linux.outputs.hash }}"
+            "CUDA: ${{ env.CUDA_VERSION }}"
