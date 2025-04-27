@@ -115,5 +115,5 @@ jobs:
           name: Apache TVM Nightly
           tag_name: nightly
           body: |
-            "tvm@${{ needs.build-linux.outputs.hash }}"
-            "CUDA: ${{ env.CUDA_VERSION }}"
+            tvm: ${{ needs.build-linux.outputs.hash }}
+            CUDA: ${{ env.CUDA_VERSION }} (only for Linux build)
