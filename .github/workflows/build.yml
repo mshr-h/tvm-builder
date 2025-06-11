@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 env:
-  CUDA_VERSION: 12.8.0
+  CUDA_VERSION: 12.9.0
 
 jobs:
   build-linux:
@@ -33,7 +33,7 @@ jobs:
         id: hash
         run: echo "HASH=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Install cuda-toolkit
-        uses: Jimver/cuda-toolkit@v0.2.23
+        uses: Jimver/cuda-toolkit@v0.2.25
         with:
           cuda: ${{ env.CUDA_VERSION }}
           method: network
