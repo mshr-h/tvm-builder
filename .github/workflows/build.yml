@@ -129,42 +129,37 @@ jobs:
         with:
           path: ./all-wheels
 
-      - name: Compute tag meta (JST date + short TVM hash)
+      - name: Compute tag meta (JST)
         id: meta
         run: |
-          TZ=Asia/Tokyo date +%Y-%m-%d > date_jst.txt
-          TZ=Asia/Tokyo date +%Y%m%d   > date_jst_compact.txt
-          HASH="${{ needs.build-linux.outputs.hash }}"
-          echo "DATE_JST=$(cat date_jst.txt)" >> $GITHUB_OUTPUT
-          echo "DATE_JST_COMPACT=$(cat date_jst_compact.txt)" >> $GITHUB_OUTPUT
-          echo "SHORT_SHA=${HASH:0:8}" >> $GITHUB_OUTPUT
-          echo "FULL_SHA=${HASH}" >> $GITHUB_OUTPUT
-
-      # immutable tag: nightly-YYYYMMDD-tvm-<short>
-      - name: Release immutable nightly (dated)
-        uses: softprops/action-gh-release@v2.3.3
+          TZ=Asia/Tokyo date +%Y-%m-%d > d.txt
+          TZ=Asia/Tokyo date +%Y%m%d   > dc.txt
+          echo "DATE_JST=$(cat d.txt)" >> $GITHUB_OUTPUT
+          echo "DATE_JST_COMPACT=$(cat dc.txt)" >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=${{ needs.build-linux.outputs.hash }}" | cut -c1-8 >> short.txt
+          echo "SHORT_SHA=$(cat short.txt)" >> $GITHUB_OUTPUT
+      
+      - uses: softprops/action-gh-release@v2.3.3
         with:
-          name: Apache TVM Nightly (${% raw %}{{ steps.meta.outputs.DATE_JST }}{% endraw %}) [tvm ${% raw %}{{ steps.meta.outputs.SHORT_SHA }}{% endraw %}]
-          tag_name: nightly-${% raw %}{{ steps.meta.outputs.DATE_JST_COMPACT }}{% endraw %}-tvm-${% raw %}{{ steps.meta.outputs.SHORT_SHA }}{% endraw %}
+          name: Apache TVM Nightly (${{ steps.meta.outputs.DATE_JST }}) [tvm ${{ steps.meta.outputs.SHORT_SHA }}]
+          tag_name: nightly-${{ steps.meta.outputs.DATE_JST_COMPACT }}-tvm-${{ steps.meta.outputs.SHORT_SHA }}
           body: |
-            tvm: ${% raw %}{{ steps.meta.outputs.FULL_SHA }}{% endraw %}
-            CUDA: ${% raw %}{{ env.CUDA_VERSION }}{% endraw %} (Linux only)
-            Built (JST): ${% raw %}{{ steps.meta.outputs.DATE_JST }}{% endraw %}
+            tvm: ${{ needs.build-linux.outputs.hash }}
+            CUDA: ${{ env.CUDA_VERSION }} (Linux only)
+            Built (JST): ${{ steps.meta.outputs.DATE_JST }}
           files: |
-            all-wheels/**/* 
+            all-wheels/**/*
           prerelease: true
           fail_on_unmatched_files: true
-
-      # nightly tag
-      - name: Update moving "nightly" tag
-        uses: softprops/action-gh-release@v2.3.3
+      
+      - uses: softprops/action-gh-release@v2.3.3
         with:
           name: Apache TVM Nightly (latest)
           tag_name: nightly
           body: |
-            tvm: ${% raw %}{{ steps.meta.outputs.FULL_SHA }}{% endraw %}
-            CUDA: ${% raw %}{{ env.CUDA_VERSION }}{% endraw %} (Linux only)
-            Latest build (JST): ${% raw %}{{ steps.meta.outputs.DATE_JST }}{% endraw %}
+            tvm: ${{ needs.build-linux.outputs.hash }}
+            CUDA: ${{ env.CUDA_VERSION }} (Linux only)
+            Latest build (JST): ${{ steps.meta.outputs.DATE_JST }}
           files: |
             all-wheels/**/*
           prerelease: true
