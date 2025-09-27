@@ -96,7 +96,7 @@ jobs:
       - name: Build python package
         run: |
           cmake --build build
-          python -m pip wheel --no-binary python/ python/ --wheel-dir whl
+          python -m pip wheel python/ --wheel-dir whl
       - name: Check if TVM can be imported
         run: |
           python -m pip install whl/tvm*.whl apache-tvm-ffi
