@@ -131,36 +131,56 @@ jobs:
 
       - name: Compute tag meta (JST)
         id: meta
+        shell: bash
         run: |
           TZ=Asia/Tokyo date +%Y-%m-%d > d.txt
           TZ=Asia/Tokyo date +%Y%m%d   > dc.txt
           echo "DATE_JST=$(cat d.txt)" >> $GITHUB_OUTPUT
           echo "DATE_JST_COMPACT=$(cat dc.txt)" >> $GITHUB_OUTPUT
-          echo "SHORT_SHA=${{ needs.build-linux.outputs.hash }}" | cut -c1-8 >> short.txt
-          echo "SHORT_SHA=$(cat short.txt)" >> $GITHUB_OUTPUT
       
+          HASH="${{ needs.build-linux.outputs.hash }}"
+          echo "FULL_SHA=$HASH"       >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=${HASH:0:8}" >> $GITHUB_OUTPUT
+
+      - name: Flatten & dedupe wheels
+        shell: bash
+        run: |
+          mkdir -p upload
+          # 同名ファイルは最初に見つかったものだけを採用（重複はスキップ）
+          while IFS= read -r -d '' f; do
+            bn="$(basename "$f")"
+            if [[ -e "upload/$bn" ]]; then
+              echo "skip duplicate: $bn"
+            else
+              cp "$f" "upload/$bn"
+            fi
+          done < <(find all-wheels -type f -name '*.whl' -print0)
+      
+          echo "Final upload set:"
+          ls -al upload
+
       - uses: softprops/action-gh-release@v2.3.3
         with:
-          name: Apache TVM Weekly (${{ steps.meta.outputs.DATE_JST }}) [tvm ${{ steps.meta.outputs.SHORT_SHA }}]
+          name: Apache TVM Nightly (${{ steps.meta.outputs.DATE_JST }}) [tvm ${{ steps.meta.outputs.SHORT_SHA }}]
           tag_name: nightly-${{ steps.meta.outputs.DATE_JST_COMPACT }}-tvm-${{ steps.meta.outputs.SHORT_SHA }}
           body: |
-            tvm: ${{ needs.build-linux.outputs.hash }}
+            tvm: ${{ steps.meta.outputs.FULL_SHA }}
             CUDA: ${{ env.CUDA_VERSION }} (Linux only)
             Built (JST): ${{ steps.meta.outputs.DATE_JST }}
           files: |
-            all-wheels/**/*
+            upload/*
           prerelease: true
           fail_on_unmatched_files: true
-      
+
       - uses: softprops/action-gh-release@v2.3.3
         with:
-          name: Apache TVM Weekly (latest)
+          name: Apache TVM Nightly (latest)
           tag_name: nightly
           body: |
-            tvm: ${{ needs.build-linux.outputs.hash }}
+            tvm: ${{ steps.meta.outputs.FULL_SHA }}
             CUDA: ${{ env.CUDA_VERSION }} (Linux only)
             Latest build (JST): ${{ steps.meta.outputs.DATE_JST }}
           files: |
-            all-wheels/**/*
+            upload/*
           prerelease: true
           fail_on_unmatched_files: true
