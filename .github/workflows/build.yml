@@ -78,6 +78,8 @@ jobs:
           repository: 'apache/tvm'
           submodules: recursive
           github-server-url: https://github.com
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.19
       - name: Retrieve hash
@@ -93,7 +95,6 @@ jobs:
           python -m pip install -U pip numpy cmake ninja wheel cython build setuptools
       - name: Build python package
         run: |
-          python -m pip wheel python/ --wheel-dir whl
           uv build --wheel . \
             --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON" \
             -C cmake.define.CMAKE_C_COMPILER_LAUNCHER=ccache \
