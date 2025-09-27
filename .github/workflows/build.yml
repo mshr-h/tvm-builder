@@ -45,7 +45,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
-            build-essential libedit-dev libxml2-dev llvm-dev
+            build-essential libedit-dev libxml2-dev llvm-dev libpolly-dev
           uv venv && source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools
       - name: Build python package
@@ -102,7 +102,7 @@ jobs:
           uv build --wheel 3rdparty/tvm-ffi/
       - name: Check if TVM can be imported
         run: |
-          python -m pip install dist/tvm*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
+          uv pip install dist/tvm*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
           python -c "import tvm; print(tvm.__version__)"
       - uses: softprops/action-gh-release@v2.3.3
         with:
