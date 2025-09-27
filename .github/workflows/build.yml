@@ -93,7 +93,6 @@ jobs:
           python -m pip install -U pip numpy cmake ninja wheel cython build setuptools
       - name: Build python package
         run: |
-          cmake --build build
           python -m pip wheel python/ --wheel-dir whl
           uv build --wheel . \
             --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON" \
