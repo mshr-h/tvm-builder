@@ -27,39 +27,48 @@ jobs:
           repository: 'apache/tvm'
           submodules: recursive
           github-server-url: https://github.com
+
       - name: Install uv
         uses: astral-sh/setup-uv@v6
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.19
+
       - name: Retrieve hash
         id: hash
         run: echo "HASH=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
       - name: Install cuda-toolkit
         uses: Jimver/cuda-toolkit@v0.2.27
         with:
           cuda: ${{ env.CUDA_VERSION }}
           method: network
+
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install dependencies
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
             build-essential libedit-dev libxml2-dev llvm-dev
           uv venv && source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools
+
       - name: Build python package
         run: |
           uv build --wheel . \
             --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
           uv build --wheel 3rdparty/tvm-ffi/
+
       - name: Check if TVM can be imported
         run: |
           uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
           uv run python -c "import tvm; print(tvm.__version__)"
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ runner.os }}-py${{ matrix.python-version }}
+          name: wheels-linux-py${{ matrix.python-version }}
           path: |
             dist/tvm-*.whl
             3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
@@ -76,33 +85,37 @@ jobs:
           repository: 'apache/tvm'
           submodules: recursive
           github-server-url: https://github.com
+
       - name: Install uv
         uses: astral-sh/setup-uv@v6
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.19
-      - name: Retrieve hash
-        id: hash
-        run: echo "HASH=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install dependencies
         run: |
           brew install llvm
           uv venv && source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools
+
       - name: Build python package
         run: |
           uv build --wheel . \
             --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON"
           uv build --wheel 3rdparty/tvm-ffi/
+
       - name: Check if TVM can be imported
         run: |
           uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
           uv run python -c "import tvm; print(tvm.__version__)"
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ runner.os }}-py${{ matrix.python-version }}
+          name: wheels-macos-py${{ matrix.python-version }}
           path: |
             dist/tvm-*.whl
             3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
@@ -116,12 +129,19 @@ jobs:
         with:
           path: ./all-wheels
 
+      - name: Show files (debug)
+        run: ls -R all-wheels || true
+
       - uses: softprops/action-gh-release@v2.3.3
         with:
-          name: Apache TVM Nightly
-          tag_name: nightly
+          name: Apache TVM Nightly (${% raw %}{{ needs.build-linux.outputs.hash }}{% endraw %})
+          tag_name: tvm-${% raw %}{{ needs.build-linux.outputs.hash }}{% endraw %}
+          target_commitish: ${% raw %}{{ github.sha }}{% endraw %}
           body: |
-            tvm: ${{ needs.build-linux.outputs.hash }}
-            CUDA: ${{ env.CUDA_VERSION }} (only for Linux build)
+            tvm: ${% raw %}{{ needs.build-linux.outputs.hash }}{% endraw %}
+            CUDA: ${% raw %}{{ env.CUDA_VERSION }}{% endraw %} (only for Linux build)
           files: |
             all-wheels/**/*
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: true
