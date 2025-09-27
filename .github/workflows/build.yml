@@ -57,12 +57,12 @@ jobs:
         run: |
           uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
           uv run python -c "import tvm; print(tvm.__version__)"
-      - uses: softprops/action-gh-release@v2.3.3
+      - uses: actions/upload-artifact@v4
         with:
-          files: |
-            "dist/tvm-*.whl"
-            "3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl"
-          tag_name: nightly
+          name: wheels-${{ runner.os }}-py${{ matrix.python-version }}
+          path: |
+            dist/tvm-*.whl
+            3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
 
   build-macos:
     runs-on: macos-latest
@@ -100,17 +100,22 @@ jobs:
         run: |
           uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
           uv run python -c "import tvm; print(tvm.__version__)"
-      - uses: softprops/action-gh-release@v2.3.3
+      - uses: actions/upload-artifact@v4
         with:
-          files: |
-            "dist/tvm-*.whl"
-            "3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl"
-          tag_name: nightly
+          name: wheels-${{ runner.os }}-py${{ matrix.python-version }}
+          path: |
+            dist/tvm-*.whl
+            3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
 
   release:
     needs: [build-linux, build-macos]
     runs-on: ubuntu-latest
     steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-wheels
+
       - uses: softprops/action-gh-release@v2.3.3
         with:
           name: Apache TVM Nightly
@@ -118,3 +123,5 @@ jobs:
           body: |
             tvm: ${{ needs.build-linux.outputs.hash }}
             CUDA: ${{ env.CUDA_VERSION }} (only for Linux build)
+          files: |
+            all-wheels/**/*
