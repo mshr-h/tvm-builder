@@ -44,8 +44,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh all
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
-            build-essential libedit-dev libxml2-dev llvm-dev libpolly-dev
+            build-essential libedit-dev libxml2-dev libpolly-20-dev
           uv venv && source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools
       - name: Build python package
