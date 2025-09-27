@@ -54,9 +54,7 @@ jobs:
       - name: Build python package
         run: |
           uv build --wheel . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON" \
-            -C cmake.define.CMAKE_C_COMPILER_LAUNCHER=ccache \
-            -C cmake.define.CMAKE_CXX_COMPILER_LAUNCHER=ccache
+            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
           uv build --wheel 3rdparty/tvm-ffi/
       - name: Check if TVM can be imported
         run: |
@@ -99,9 +97,7 @@ jobs:
       - name: Build python package
         run: |
           uv build --wheel . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON" \
-            -C cmake.define.CMAKE_C_COMPILER_LAUNCHER=ccache \
-            -C cmake.define.CMAKE_CXX_COMPILER_LAUNCHER=ccache
+            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON"
           uv build --wheel 3rdparty/tvm-ffi/
       - name: Check if TVM can be imported
         run: |
