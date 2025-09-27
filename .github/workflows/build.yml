@@ -141,7 +141,7 @@ jobs:
       
       - uses: softprops/action-gh-release@v2.3.3
         with:
-          name: Apache TVM Nightly (${{ steps.meta.outputs.DATE_JST }}) [tvm ${{ steps.meta.outputs.SHORT_SHA }}]
+          name: Apache TVM Weekly (${{ steps.meta.outputs.DATE_JST }}) [tvm ${{ steps.meta.outputs.SHORT_SHA }}]
           tag_name: nightly-${{ steps.meta.outputs.DATE_JST_COMPACT }}-tvm-${{ steps.meta.outputs.SHORT_SHA }}
           body: |
             tvm: ${{ needs.build-linux.outputs.hash }}
@@ -154,7 +154,7 @@ jobs:
       
       - uses: softprops/action-gh-release@v2.3.3
         with:
-          name: Apache TVM Nightly (latest)
+          name: Apache TVM Weekly (latest)
           tag_name: nightly
           body: |
             tvm: ${{ needs.build-linux.outputs.hash }}
