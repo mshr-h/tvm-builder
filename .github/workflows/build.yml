@@ -53,6 +53,7 @@ jobs:
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools
       - name: Build python package
         run: |
+          export CPLUS_INCLUDE_PATH="/usr/include/c++/13:/usr/include/x86_64-linux-gnu/c++/13"
           uv build --wheel . \
             --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config-20 --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
           uv build --wheel 3rdparty/tvm-ffi/
