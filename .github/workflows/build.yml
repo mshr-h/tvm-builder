@@ -104,7 +104,7 @@ jobs:
       - name: Build python package
         run: |
           uv build --wheel . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON"
+            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_METAL"
           uv build --wheel 3rdparty/tvm-ffi/
 
       - name: Check if TVM can be imported
