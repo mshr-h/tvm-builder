@@ -50,14 +50,14 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
-            build-essential libedit-dev libxml2-dev llvm-dev
+            build-essential libedit-dev libxml2-dev llvm-dev llvm-dev
           uv venv && source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
 
       - name: Build python package
         run: |
           uv build --wheel . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
+            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
           uv build --wheel 3rdparty/tvm-ffi/
 
       - name: Check if TVM can be imported
@@ -65,7 +65,7 @@ jobs:
           uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
           uv run python -c "import tvm; print(tvm.__version__)"
 
-      - name: Ruun unittest
+      - name: Run unittest
         run: |
           uv run pytest tests/python/all-platform-minimal-test
 
