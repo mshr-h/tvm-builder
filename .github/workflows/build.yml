@@ -50,11 +50,26 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
-            build-essential libedit-dev libxml2-dev llvm-dev libpolly-18-dev libzstd-dev
+            build-essential libedit-dev libxml2-dev llvm-dev libpolly-18-dev
           uv venv && source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
 
+      - name: Build zstd (PIC static)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 https://github.com/facebook/zstd.git
+          make -C zstd clean
+          make -C zstd ZSTD_LEGACY_SUPPORT=0 CFLAGS="-O2 -fPIC"
+          sudo make -C zstd install PREFIX=/usr/local
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/zz-local.conf
+          sudo ldconfig
+
       - name: Build python package
+        env:
+          LIBRARY_PATH: /usr/local/lib:${{ env.LIBRARY_PATH }}
+          CMAKE_LIBRARY_PATH: /usr/local/lib:${{ env.CMAKE_LIBRARY_PATH }}
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
         run: |
           uv build --wheel . \
             --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
