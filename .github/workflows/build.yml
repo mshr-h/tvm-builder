@@ -65,15 +65,15 @@ jobs:
           echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/zz-local.conf
           sudo ldconfig
 
-      - name: Build python package
+      - name: Build TVM
         env:
           LIBRARY_PATH: /usr/local/lib:${{ env.LIBRARY_PATH }}
           CMAKE_LIBRARY_PATH: /usr/local/lib:${{ env.CMAKE_LIBRARY_PATH }}
           PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
         run: |
-          uv build --wheel . \
+          uv pip install . \
             --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
-          uv build --wheel 3rdparty/tvm-ffi/
+          uv pip install 3rdparty/tvm-ffi/
 
       - name: Check if TVM can be imported
         run: |
@@ -83,6 +83,16 @@ jobs:
       - name: Run unittest
         run: |
           uv run pytest tests/python/all-platform-minimal-test
+
+      - name: Build python package
+        env:
+          LIBRARY_PATH: /usr/local/lib:${{ env.LIBRARY_PATH }}
+          CMAKE_LIBRARY_PATH: /usr/local/lib:${{ env.CMAKE_LIBRARY_PATH }}
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
+        run: |
+          uv build --wheel . \
+            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
+          uv build --wheel 3rdparty/tvm-ffi/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
