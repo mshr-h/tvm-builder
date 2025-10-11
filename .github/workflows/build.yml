@@ -75,9 +75,8 @@ jobs:
             --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
           uv pip install 3rdparty/tvm-ffi/
 
-      - name: Check if TVM can be imported
+      - name: Show TVM info
         run: |
-          uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
           uv run python -c "import tvm; print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
@@ -93,6 +92,11 @@ jobs:
           uv build --wheel . \
             --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
           uv build --wheel 3rdparty/tvm-ffi/
+
+      - name: Check if TVM can be imported with wheels
+        run: |
+          uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
+          uv run python -c "import tvm; print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
