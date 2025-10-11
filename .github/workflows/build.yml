@@ -78,7 +78,7 @@ jobs:
       - name: Check if TVM can be imported
         run: |
           uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
-          uv run python -c "import tvm; print(tvm.__version__)"
+          uv run python -c "import tvm; print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
         run: |
