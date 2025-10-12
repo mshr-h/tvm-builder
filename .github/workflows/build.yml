@@ -80,6 +80,8 @@ jobs:
           uv run python -c "import tvm; print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
+        env:
+          TVM_TEST_TARGETS: "llvm;cuda"
         run: |
           uv run pytest tests/python/all-platform-minimal-test
 
@@ -150,6 +152,8 @@ jobs:
           uv run python -c "import tvm; print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
+        env:
+          TVM_TEST_TARGETS: "llvm"
         run: |
           uv run pytest tests/python/all-platform-minimal-test
 
