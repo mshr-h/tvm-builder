@@ -78,7 +78,7 @@ jobs:
           PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
         run: |
           uv pip install . --verbose \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config-18'; -DLLVM_DIR=$(llvm-config-18 --cmakedir); -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
+            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config-18 --link-static'; -DLLVM_DIR=$(llvm-config-18 --cmakedir); -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
           uv pip install 3rdparty/tvm-ffi/ --verbose
 
       - name: Show TVM info
@@ -98,7 +98,7 @@ jobs:
           PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
         run: |
           uv build --wheel . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
+            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config-18 --link-static'; -DLLVM_DIR=$(llvm-config-18 --cmakedir); -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
           uv build --wheel 3rdparty/tvm-ffi/
 
       - name: Check if TVM can be imported with wheels
