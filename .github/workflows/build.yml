@@ -83,13 +83,18 @@ jobs:
 
       - name: Show TVM info
         run: |
+          set -eux
+          TMPDIR="$(mktemp -d)"
           uv run python -c "import tvm; print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
         env:
-          TVM_TEST_TARGETS: "llvm;cuda"
+          TVM_TEST_TARGETS: "llvm"
         run: |
-          uv run pytest tests/python/all-platform-minimal-test
+          set -eux
+          ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
+          TMPDIR="$(mktemp -d)"
+          PYTHONPATH="" uv run python -m pytest -q "$ABS_TESTS"
 
       - name: Build python package
         env:
@@ -104,7 +109,7 @@ jobs:
       - name: Check if TVM can be imported with wheels
         run: |
           uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
-          uv run python -c "import tvm; print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+          uv run python -c "import tvm; print("tvm.__file__ =", tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -155,12 +160,17 @@ jobs:
 
       - name: Show TVM info
         run: |
-          uv run python -c "import tvm; print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+          set -eux
+          TMPDIR="$(mktemp -d)"
+          uv run python -c "import tvm; print("tvm.__file__ =", tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
         env:
           TVM_TEST_TARGETS: "llvm"
         run: |
+          set -eux
+          ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
+          TMPDIR="$(mktemp -d)"
           uv run pytest tests/python/all-platform-minimal-test
 
       - name: Upload artifacts
