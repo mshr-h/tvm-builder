@@ -11,6 +11,7 @@ permissions:
 
 env:
   CUDA_VERSION: 12.9.0
+  tmp_dir: tmp-tvm
 
 jobs:
   build-linux:
@@ -84,20 +85,15 @@ jobs:
       - name: Check if TVM can be imported with wheels
         run: |
           uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
-          set -eux
-          TMPDIR="$(mktemp -d)"
-          cd $TMPDIR
-          uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+          mkdir ${{ env.tmp_dir }}
+          uv run --directory ${{ env.tmp_dir }} python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
         env:
           TVM_TEST_TARGETS: "llvm"
         run: |
-          set -eux
           ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
-          TMPDIR="$(mktemp -d)"
-          cd $TMPDIR
-          PYTHONPATH="" uv run python -m pytest -q "$ABS_TESTS"
+          PYTHONPATH="" uv run --directory ${{ env.tmp_dir }} pytest -q "$ABS_TESTS"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -144,10 +140,8 @@ jobs:
       - name: Check if TVM can be imported
         run: |
           uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
-          set -eux
-          TMPDIR="$(mktemp -d)"
-          cd $TMPDIR
-          uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+          mkdir ${{ env.tmp_dir }}
+          uv run python --directory ${{ env.tmp_dir }} -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
         env:
@@ -157,7 +151,7 @@ jobs:
           ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
           TMPDIR="$(mktemp -d)"
           cd $TMPDIR
-          uv run pytest tests/python/all-platform-minimal-test
+          uv run --directory ${{ env.tmp_dir }} pytest tests/python/all-platform-minimal-test
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
