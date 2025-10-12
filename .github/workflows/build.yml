@@ -141,7 +141,7 @@ jobs:
         run: |
           uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
           mkdir ${{ env.tmp_dir }}
-          uv run python --directory ${{ env.tmp_dir }} -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+          uv run --directory ${{ env.tmp_dir }} python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
         env:
