@@ -71,31 +71,6 @@ jobs:
           echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/zz-local.conf
           sudo ldconfig
 
-      - name: Build TVM
-        env:
-          LIBRARY_PATH: /usr/local/lib:${{ env.LIBRARY_PATH }}
-          CMAKE_LIBRARY_PATH: /usr/local/lib:${{ env.CMAKE_LIBRARY_PATH }}
-          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
-        run: |
-          uv pip install . --verbose \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config-18 --link-static'; -DLLVM_DIR=$(llvm-config-18 --cmakedir); -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
-          uv pip install 3rdparty/tvm-ffi/ --verbose
-
-      - name: Show TVM info
-        run: |
-          set -eux
-          TMPDIR="$(mktemp -d)"
-          uv run python -c "import tvm; print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
-
-      - name: Run unittest
-        env:
-          TVM_TEST_TARGETS: "llvm"
-        run: |
-          set -eux
-          ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
-          TMPDIR="$(mktemp -d)"
-          PYTHONPATH="" uv run python -m pytest -q "$ABS_TESTS"
-
       - name: Build python package
         env:
           LIBRARY_PATH: /usr/local/lib:${{ env.LIBRARY_PATH }}
@@ -108,8 +83,19 @@ jobs:
 
       - name: Check if TVM can be imported with wheels
         run: |
+          set -eux
+          TMPDIR="$(mktemp -d)"
           uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
-          uv run python -c "import tvm; print("tvm.__file__ =", tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+          uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+
+      - name: Run unittest
+        env:
+          TVM_TEST_TARGETS: "llvm"
+        run: |
+          set -eux
+          ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
+          TMPDIR="$(mktemp -d)"
+          PYTHONPATH="" uv run python -m pytest -q "$ABS_TESTS"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -156,13 +142,9 @@ jobs:
       - name: Check if TVM can be imported
         run: |
           uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
-          uv run python -c "import tvm; print(tvm.__version__)"
-
-      - name: Show TVM info
-        run: |
           set -eux
           TMPDIR="$(mktemp -d)"
-          uv run python -c "import tvm; print("tvm.__file__ =", tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+          uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
         env:
