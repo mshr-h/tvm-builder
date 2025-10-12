@@ -83,9 +83,10 @@ jobs:
 
       - name: Check if TVM can be imported with wheels
         run: |
+          uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
           set -eux
           TMPDIR="$(mktemp -d)"
-          uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
+          cd $TMPDIR
           uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
@@ -95,6 +96,7 @@ jobs:
           set -eux
           ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
           TMPDIR="$(mktemp -d)"
+          cd $TMPDIR
           PYTHONPATH="" uv run python -m pytest -q "$ABS_TESTS"
 
       - name: Upload artifacts
@@ -141,9 +143,10 @@ jobs:
 
       - name: Check if TVM can be imported
         run: |
-          uv pip install dist/tvm-*.whl 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
+          uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
           set -eux
           TMPDIR="$(mktemp -d)"
+          cd $TMPDIR
           uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
 
       - name: Run unittest
@@ -153,6 +156,7 @@ jobs:
           set -eux
           ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
           TMPDIR="$(mktemp -d)"
+          cd $TMPDIR
           uv run pytest tests/python/all-platform-minimal-test
 
       - name: Upload artifacts
