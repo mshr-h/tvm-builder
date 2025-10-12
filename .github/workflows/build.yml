@@ -43,6 +43,12 @@ jobs:
           cuda: ${{ env.CUDA_VERSION }}
           method: network
 
+      - name: Expose CUDA to PATH/LD_LIBRARY_PATH
+        run: |
+          echo "/usr/local/cuda-${{ env.CUDA_VERSION }}/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=/usr/local/cuda-${{ env.CUDA_VERSION }}/lib64:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+          echo "CUDA_HOME=/usr/local/cuda-${{ env.CUDA_VERSION }}" >> $GITHUB_ENV
+
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
