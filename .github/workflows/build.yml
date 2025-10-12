@@ -140,7 +140,7 @@ jobs:
         run: |
           brew install llvm
           uv venv && source .venv/bin/activate
-          uv pip install -U pip numpy cmake ninja wheel cython build setuptools
+          uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
 
       - name: Build python package
         run: |
