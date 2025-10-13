@@ -38,15 +38,14 @@ jobs:
           echo "DATE_JST=$(TZ=Asia/Tokyo date +%F)" >> $GITHUB_OUTPUT
           echo "DATE_JST_COMPACT=$(TZ=Asia/Tokyo date +%Y%m%d)" >> $GITHUB_OUTPUT
 
-  build-linux:
+  build:
     needs: [meta]
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest]
         python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
-    outputs:
-      hash: ${{ steps.hash.outputs.HASH }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -84,17 +83,26 @@ jobs:
           echo "CCACHE_MAXSIZE=5G" >> $GITHUB_ENV
 
       - uses: Jimver/cuda-toolkit@v0.2.27
+        if: runner.os == 'Linux'
         with:
           cuda: ${{ env.CUDA_VERSION }}
           method: network
 
-      - name: Install dependencies
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
             build-essential libedit-dev libxml2-dev llvm-18-dev llvm-18-tools clang-18 libpolly-18-dev
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
 
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install llvm
+          uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
+
       - name: Build zstd (PIC static)
+        if: runner.os == 'Linux'
         run: |
           set -euxo pipefail
           git clone --depth 1 https://github.com/facebook/zstd.git
@@ -104,7 +112,8 @@ jobs:
           echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/zz-local.conf
           sudo ldconfig
 
-      - name: Build python package
+      - name: Build python package (Linux)
+        if: runner.os == 'Linux'
         env:
           LIBRARY_PATH: /usr/local/lib:${{ env.LIBRARY_PATH }}
           CMAKE_LIBRARY_PATH: /usr/local/lib:${{ env.CMAKE_LIBRARY_PATH }}
@@ -114,7 +123,15 @@ jobs:
             --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config-18 --link-static'; -DLLVM_DIR=$(llvm-config-18 --cmakedir); -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
           uv build --wheel 3rdparty/tvm-ffi/
 
+      - name: Build python package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          uv build --wheel . \
+            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_METAL=ON;"
+          uv build --wheel 3rdparty/tvm-ffi/
+
       - name: Test TVM
+        if: runner.os == 'Linux'
         env:
           TVM_TEST_TARGETS: "llvm"
         run: |
@@ -133,80 +150,8 @@ jobs:
             dist/tvm-*.whl
             3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
 
-  build-macos:
-    needs: [meta]
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: 'apache/tvm'
-          ref: ${{ needs.meta.outputs.HASH }}
-          submodules: recursive
-          github-server-url: https://github.com
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - uses: astral-sh/setup-uv@v6
-        with:
-          activate-environment: "true"
-
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: uv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', '3rdparty/tvm-ffi/pyproject.toml', 'CMakeLists.txt') }}
-          restore-keys: |
-            uv-${{ runner.os }}-py${{ matrix.python-version }}-
-
-      - uses: hendrikmuhs/ccache-action@v1.2.19
-        with:
-          key: ccache-${{ runner.os }}-py${{ matrix.python-version }}-llvm18-cuda${{ env.CUDA_VERSION }}-${{ needs.meta.outputs.SHORT_SHA }}
-          restore-keys: |
-            ccache-${{ runner.os }}-py${{ matrix.python-version }}-llvm18-cuda${{ env.CUDA_VERSION }}-
-          max-size: 5G
-
-      - name: Configure ccache
-        run: |
-          echo "CCACHE_DIR=$HOME/.cache/ccache" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=5G" >> $GITHUB_ENV
-
-      - name: Install dependencies
-        run: |
-          brew install llvm
-          uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
-
-      - name: Build python package
-        run: |
-          uv build --wheel . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_METAL=ON;"
-          uv build --wheel 3rdparty/tvm-ffi/
-
-      - name: Test TVM
-        env:
-          TVM_TEST_TARGETS: "llvm"
-        run: |
-          source .venv/bin/activate
-          ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
-          uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
-          cd ..; mkdir tmp; cd tmp;
-          uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
-          uv run pytest -v "$ABS_TESTS"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheels-macos-py${{ matrix.python-version }}
-          path: |
-            dist/tvm-*.whl
-            3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
-
   release:
-    needs: [meta, build-linux, build-macos]
+    needs: [meta, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
