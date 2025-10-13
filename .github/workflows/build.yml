@@ -198,6 +198,10 @@ jobs:
           prerelease: true
           fail_on_unmatched_files: true
 
+      - name: Delete nightly tag
+        run: |
+          gh release delete nightly --cleanup-tag --yes
+
       - uses: softprops/action-gh-release@v2.3.3
         with:
           name: Apache TVM Nightly (latest)
