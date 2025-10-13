@@ -6,6 +6,10 @@ on:
   schedule:
     - cron: "* 17 * * *"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CUDA_VERSION: 12.9.0
 
@@ -56,6 +60,10 @@ jobs:
           submodules: recursive
           github-server-url: https://github.com
 
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
       - uses: astral-sh/setup-uv@v6
         with:
           activate-environment: "true"
@@ -67,15 +75,10 @@ jobs:
           cuda: ${{ env.CUDA_VERSION }}
           method: network
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
       - name: Install dependencies
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
             build-essential libedit-dev libxml2-dev llvm-18-dev llvm-18-tools clang-18 libpolly-18-dev
-          source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
 
       - name: Build zstd (PIC static)
@@ -132,20 +135,19 @@ jobs:
           submodules: recursive
           github-server-url: https://github.com
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2.19
-
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
+      - uses: astral-sh/setup-uv@v6
+        with:
+          activate-environment: "true"
+
+      - uses: hendrikmuhs/ccache-action@v1.2.19
+
       - name: Install dependencies
         run: |
           brew install llvm
-          uv venv && source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
 
       - name: Build python package
@@ -165,8 +167,7 @@ jobs:
           uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
           uv run pytest -v "$ABS_TESTS"
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: wheels-macos-py${{ matrix.python-version }}
           path: |
