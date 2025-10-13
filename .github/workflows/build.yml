@@ -115,9 +115,9 @@ jobs:
       - name: Define CMake args
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
-            echo "TVM_CMAKE_ARGS=\"-G Ninja; -DUSE_LLVM=\'llvm-config-18 --link-static\'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON\"" >> $GITHUB_ENV
+            echo "TVM_CMAKE_ARGS=\"-G Ninja; -DUSE_LLVM='llvm-config-18 --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON\"" >> $GITHUB_ENV
           else
-            echo "TVM_CMAKE_ARGS=\"-G Ninja; -DUSE_LLVM=\'$(brew --prefix llvm)/bin/llvm-config --link-static\'; -DUSE_MLIR=ON; -DUSE_METAL=ON\"" >> $GITHUB_ENV
+            echo "TVM_CMAKE_ARGS=\"-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_METAL=ON\"" >> $GITHUB_ENV
           fi
       - name: Build python package
         run: |
