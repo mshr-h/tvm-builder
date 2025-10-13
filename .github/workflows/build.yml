@@ -135,20 +135,18 @@ jobs:
         if: runner.os == 'Linux' && steps.zstd-cache.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
-          mkdir -p "${TOOLROOT}"
           git clone --depth 1 --branch v${ZSTD_VERSION} https://github.com/facebook/zstd.git
           make -C zstd clean
           make -C zstd ZSTD_LEGACY_SUPPORT=0 CFLAGS="-O2 -fPIC" -j"$(/usr/bin/nproc || sysctl -n hw.ncpu || echo 2)"
-          make -C zstd PREFIX="${TOOLROOT}" install
-          echo "${TOOLROOT}/lib" | sudo tee /etc/ld.so.conf.d/zz-local.conf >/dev/null || true
-          (command -v ldconfig && sudo ldconfig) || true
+          sudo make -C zstd install PREFIX=/usr/local
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/zz-local.conf
+          sudo ldconfig
 
       - name: Build wheels
         env:
-          # zstd prefix を優先
-          LIBRARY_PATH: ${{ env.TOOLROOT }}/lib:${{ env.LIBRARY_PATH }}
-          CMAKE_LIBRARY_PATH: ${{ env.TOOLROOT }}/lib:${{ env.CMAKE_LIBRARY_PATH }}
-          PKG_CONFIG_PATH: ${{ env.TOOLROOT }}/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
+          LIBRARY_PATH: /usr/local/lib:${{ env.LIBRARY_PATH }}
+          CMAKE_LIBRARY_PATH: /usr/local/lib:${{ env.CMAKE_LIBRARY_PATH }}
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
         run: |
           uv build --wheel . \
             --config-settings=cmake.args="-G Ninja; ${{ matrix.cmake_extra }}"
