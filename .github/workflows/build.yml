@@ -26,9 +26,13 @@ jobs:
         id: tvm
         with:
           script: |
-            const res = await github.repos.getBranch({owner:'apache', repo:'tvm', branch:'main'});
-            core.setOutput('HASH', res.data.commit.sha);
-            core.setOutput('SHORT_SHA', res.data.commit.sha.substring(0,8));
+            const res = await github.rest.git.getRef({
+              owner: 'apache',
+              repo: 'tvm',
+              ref: 'heads/main',
+            });
+            core.setOutput('HASH', res.object.sha);
+            core.setOutput('SHORT_SHA', res.object.sha.substring(0,8));
       - id: date
         run: |
           echo "DATE_JST=$(TZ=Asia/Tokyo date +%F)" >> $GITHUB_OUTPUT
