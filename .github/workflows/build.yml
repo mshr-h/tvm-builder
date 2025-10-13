@@ -216,6 +216,12 @@ jobs:
           prerelease: true
           fail_on_unmatched_files: true
 
+      - name: Delete nightly tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh gh release delete nightly --cleanup-tag --yes
+
       - name: Release (latest nightly)
         uses: softprops/action-gh-release@v2.3.3
         with:
