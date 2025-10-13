@@ -2,215 +2,229 @@ name: Build Apache TVM
 
 on:
   push:
-    branches: 'main'
+    branches: [main]
   schedule:
-    - cron: "* 17 * * *"
+    - cron: "0 8 * * *"    # 17:00 JST
+  workflow_dispatch:
 
+concurrency:
+  group: tvm-nightly-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+# デフォルトは最小権限
 permissions:
-  contents: write
+  contents: read
 
 env:
   CUDA_VERSION: 12.9.0
+  ZSTD_VERSION: 1.5.6
+  TOOLROOT: ${{ github.workspace }}/toolroot   # zstd等のローカルprefix
+  UV_CACHE_DIR: ~/.cache/uv
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  prepare:
+    name: Pin TVM commit & meta
+    runs-on: ubuntu-24.04
+    outputs:
+      tvm_sha: ${{ steps.pin.outputs.TVM_SHA }}
+      date_jst: ${{ steps.meta.outputs.DATE_JST }}
+      date_compact: ${{ steps.meta.outputs.DATE_JST_COMPACT }}
+      short_sha: ${{ steps.short.outputs.SHORT_SHA }}
+    steps:
+      - name: Checkout TVM (shallow)
+        uses: actions/checkout@v4
+        with:
+          repository: apache/tvm
+          ref: main
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Pin SHA
+        id: pin
+        run: echo "TVM_SHA=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Compute SHORT_SHA
+        id: short
+        run: |
+          SHA=$(git rev-parse HEAD)
+          echo "SHORT_SHA=${SHA:0:8}" >> $GITHUB_OUTPUT
+
+      - name: Compute JST Date
+        id: meta
+        run: |
+          echo "DATE_JST=$(TZ=Asia/Tokyo date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          echo "DATE_JST_COMPACT=$(TZ=Asia/Tokyo date +%Y%m%d)" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build & Test (${{ matrix.os }} py${{ matrix.python }})
+    needs: prepare
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      max-parallel: 4
       matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
-    outputs:
-      hash: ${{ steps.hash.outputs.HASH }}
+        os: [ubuntu-24.04, macos-14]
+        python: ['3.10','3.11','3.12','3.13','3.14']
+        include:
+          # Linux (CUDA, LLVM18)
+          - os: ubuntu-24.04
+            cuda: true
+            cmake_extra: "-DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON; -DUSE_LLVM='llvm-config-18 --link-static'; -DLLVM_DIR=$(llvm-config-18 --cmakedir)"
+          # macOS (Metal)
+          - os: macos-14
+            cuda: false
+            cmake_extra: "-DUSE_MLIR=ON; -DUSE_METAL=ON; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'"
+
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: 'apache/tvm'
+          repository: apache/tvm
+          ref: ${{ needs.prepare.outputs.tvm_sha }}
           submodules: recursive
-          github-server-url: https://github.com
 
       - uses: astral-sh/setup-uv@v6
         with:
           activate-environment: "true"
 
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: uv-${{ runner.os }}-${{ matrix.python }}-${{ hashFiles('pyproject.toml','**/pyproject.toml','uv.lock','**/uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-${{ matrix.python }}-
+
       - uses: hendrikmuhs/ccache-action@v1.2.19
 
-      - name: Retrieve hash
-        id: hash
-        run: echo "HASH=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-
-      - uses: Jimver/cuda-toolkit@v0.2.27
+      - uses: actions/setup-python@v5
         with:
-          cuda: ${{ env.CUDA_VERSION }}
-          method: network
+          python-version: ${{ matrix.python }}
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
+      - name: Install toolchain / deps (Linux)
+        if: runner.os == 'Linux'
         run: |
-          sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
-            build-essential libedit-dev libxml2-dev llvm-18-dev llvm-18-tools clang-18 libpolly-18-dev
-          source .venv/bin/activate
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc libtinfo-dev zlib1g-dev build-essential \
+            libedit-dev libxml2-dev llvm-18-dev llvm-18-tools clang-18 libpolly-18-dev
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
 
-      - name: Build zstd (PIC static)
-        run: |
-          set -euxo pipefail
-          git clone --depth 1 https://github.com/facebook/zstd.git
-          make -C zstd clean
-          make -C zstd ZSTD_LEGACY_SUPPORT=0 CFLAGS="-O2 -fPIC"
-          sudo make -C zstd install PREFIX=/usr/local
-          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/zz-local.conf
-          sudo ldconfig
-
-      - name: Build python package
-        env:
-          LIBRARY_PATH: /usr/local/lib:${{ env.LIBRARY_PATH }}
-          CMAKE_LIBRARY_PATH: /usr/local/lib:${{ env.CMAKE_LIBRARY_PATH }}
-          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
-        run: |
-          uv build --wheel . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config-18 --link-static'; -DLLVM_DIR=$(llvm-config-18 --cmakedir); -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
-          uv build --wheel 3rdparty/tvm-ffi/
-
-      - name: Test TVM
-        env:
-          TVM_TEST_TARGETS: "llvm"
-        run: |
-          source .venv/bin/activate
-          ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
-          uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
-          cd ..; mkdir tmp; cd tmp;
-          uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
-          uv run pytest -v "$ABS_TESTS"
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-linux-py${{ matrix.python-version }}
-          path: |
-            dist/tvm-*.whl
-            3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
-
-  build-macos:
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: 'apache/tvm'
-          submodules: recursive
-          github-server-url: https://github.com
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2.19
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
+      - name: Install toolchain / deps (macOS)
+        if: runner.os == 'macOS'
         run: |
           brew install llvm
           uv venv && source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
+          echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
 
-      - name: Build python package
+      - uses: Jimver/cuda-toolkit@v0.2.27
+        if: matrix.cuda
+        with:
+          cuda: ${{ env.CUDA_VERSION }}
+          method: network
+
+      # まずパッケージ版zstdを試し、必要な場合のみPIC staticをcache付きでビルド
+      - name: Try system zstd (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y libzstd-dev || true
+
+      - uses: actions/cache@v4
+        id: zstd-cache
+        with:
+          path: ${{ env.TOOLROOT }}
+          key: zstd-${{ runner.os }}-${{ env.ZSTD_VERSION }}
+
+      - name: Build zstd (PIC static) if missing
+        if: steps.zstd-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euxo pipefail
+          mkdir -p "${TOOLROOT}"
+          git clone --depth 1 --branch v${ZSTD_VERSION} https://github.com/facebook/zstd.git
+          make -C zstd clean
+          make -C zstd ZSTD_LEGACY_SUPPORT=0 CFLAGS="-O2 -fPIC" -j"$(/usr/bin/nproc || sysctl -n hw.ncpu || echo 2)"
+          make -C zstd PREFIX="${TOOLROOT}" install
+          echo "${TOOLROOT}/lib" | sudo tee /etc/ld.so.conf.d/zz-local.conf >/dev/null || true
+          (command -v ldconfig && sudo ldconfig) || true
+
+      - name: Build wheels
+        env:
+          # ccache launcher
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
+          CMAKE_CUDA_COMPILER_LAUNCHER: ccache
+          # zstd prefix を最優先
+          LIBRARY_PATH: ${{ env.TOOLROOT }}/lib:${{ env.LIBRARY_PATH }}
+          CMAKE_LIBRARY_PATH: ${{ env.TOOLROOT }}/lib:${{ env.CMAKE_LIBRARY_PATH }}
+          PKG_CONFIG_PATH: ${{ env.TOOLROOT }}/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
         run: |
           uv build --wheel . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_METAL=ON;"
+            --config-settings=cmake.args="-G Ninja; ${{ matrix.cmake_extra }}"
           uv build --wheel 3rdparty/tvm-ffi/
 
-      - name: Test TVM
+      - name: Test wheels
         env:
           TVM_TEST_TARGETS: "llvm"
         run: |
-          source .venv/bin/activate
           ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
           uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
-          cd ..; mkdir tmp; cd tmp;
-          uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+          mkdir -p ../tmp && cd ../tmp
+          uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__);print(tvm.support.describe())"
           uv run pytest -v "$ABS_TESTS"
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: wheels-macos-py${{ matrix.python-version }}
+          name: wheels-${{ matrix.os }}-py${{ matrix.python }}
           path: |
             dist/tvm-*.whl
             3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
+          if-no-files-found: error
+          retention-days: 7
 
   release:
-    needs: [build-linux, build-macos]
-    runs-on: ubuntu-latest
+    name: Create GitHub Releases
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Download all wheels
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: ./all-wheels
 
-      - name: Compute tag meta (JST)
-        id: meta
-        shell: bash
-        run: |
-          TZ=Asia/Tokyo date +%Y-%m-%d > d.txt
-          TZ=Asia/Tokyo date +%Y%m%d   > dc.txt
-          echo "DATE_JST=$(cat d.txt)" >> $GITHUB_OUTPUT
-          echo "DATE_JST_COMPACT=$(cat dc.txt)" >> $GITHUB_OUTPUT
-      
-          HASH="${{ needs.build-linux.outputs.hash }}"
-          echo "FULL_SHA=$HASH"       >> $GITHUB_OUTPUT
-          echo "SHORT_SHA=${HASH:0:8}" >> $GITHUB_OUTPUT
-
       - name: Flatten & dedupe wheels
-        shell: bash
         run: |
           mkdir -p upload
-          # 同名ファイルは最初に見つかったものだけを採用（重複はスキップ）
           while IFS= read -r -d '' f; do
             bn="$(basename "$f")"
-            if [[ -e "upload/$bn" ]]; then
-              echo "skip duplicate: $bn"
-            else
-              cp "$f" "upload/$bn"
-            fi
+            [[ -e "upload/$bn" ]] && { echo "skip duplicate: $bn"; continue; }
+            cp "$f" "upload/$bn"
           done < <(find all-wheels -type f -name '*.whl' -print0)
-      
-          echo "Final upload set:"
           ls -al upload
 
-      - uses: softprops/action-gh-release@v2.3.3
+      - name: Release (dated nightly)
+        uses: softprops/action-gh-release@v2.3.3
         with:
-          name: Apache TVM Nightly (${{ steps.meta.outputs.DATE_JST }}) [tvm ${{ steps.meta.outputs.SHORT_SHA }}]
-          tag_name: nightly-${{ steps.meta.outputs.DATE_JST_COMPACT }}-tvm-${{ steps.meta.outputs.SHORT_SHA }}
+          name: Apache TVM Nightly (${{ needs.prepare.outputs.date_jst }}) [tvm ${{ needs.prepare.outputs.short_sha }}]
+          tag_name: nightly-${{ needs.prepare.outputs.date_compact }}-tvm-${{ needs.prepare.outputs.short_sha }}
           body: |
-            tvm: ${{ steps.meta.outputs.FULL_SHA }}
+            tvm: ${{ needs.prepare.outputs.tvm_sha }}
             CUDA: ${{ env.CUDA_VERSION }} (Linux only)
-            Built (JST): ${{ steps.meta.outputs.DATE_JST }}
-          files: |
-            upload/*
+            Built (JST): ${{ needs.prepare.outputs.date_jst }}
+          files: upload/*
           prerelease: true
           fail_on_unmatched_files: true
 
-      - name: Delete nightly tag
-        run: |
-          gh release delete nightly --cleanup-tag --yes
-
-      - uses: softprops/action-gh-release@v2.3.3
+      - name: Release (latest nightly)
+        uses: softprops/action-gh-release@v2.3.3
         with:
           name: Apache TVM Nightly (latest)
           tag_name: nightly
           body: |
-            tvm: ${{ steps.meta.outputs.FULL_SHA }}
+            tvm: ${{ needs.prepare.outputs.tvm_sha }}
             CUDA: ${{ env.CUDA_VERSION }} (Linux only)
-            Latest build (JST): ${{ steps.meta.outputs.DATE_JST }}
-          files: |
-            upload/*
+            Latest build (JST): ${{ needs.prepare.outputs.date_jst }}
+          files: upload/*
           prerelease: true
           fail_on_unmatched_files: true
