@@ -180,11 +180,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download and merge artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: upload
           merge-multiple: true
+
+      - name: Show upload directory
+        run: |
+          ls -al upload
 
       - uses: softprops/action-gh-release@v2.3.3
         with:
