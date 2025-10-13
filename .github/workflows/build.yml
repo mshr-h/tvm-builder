@@ -17,31 +17,22 @@ jobs:
   meta:
     runs-on: ubuntu-latest
     outputs:
-      HASH: ${{ steps.hash.outputs.HASH }}
-      SHORT_SHA: ${{ steps.hash.outputs.SHORT_SHA }}
-      DATE_JST: ${{ steps.date.outputs.DATE_JST }}
+      HASH: ${{ steps.tvm.outputs.HASH }}
+      SHORT_SHA: ${{ steps.tvm.outputs.SHORT_SHA }}
+      DATE_JST:  ${{ steps.date.outputs.DATE_JST }}
       DATE_JST_COMPACT: ${{ steps.date.outputs.DATE_JST_COMPACT }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        id: tvm
         with:
-          repository: 'apache/tvm'
-          submodules: recursive
-          github-server-url: https://github.com
-      - name: Retrieve hash
-        id: hash
-        shell: bash
+          script: |
+            const res = await github.repos.getBranch({owner:'apache', repo:'tvm', branch:'main'});
+            core.setOutput('HASH', res.data.commit.sha);
+            core.setOutput('SHORT_SHA', res.data.commit.sha.substring(0,8));
+      - id: date
         run: |
-          HASH="$(git rev-parse HEAD)"
-          echo "HASH=$HASH" >> "$GITHUB_OUTPUT"
-          echo "SHORT_SHA=${HASH:0:8}" >> "$GITHUB_OUTPUT"
-      - name: Compute tag meta (JST)
-        id: date
-        shell: bash
-        run: |
-          TZ=Asia/Tokyo date +%Y-%m-%d > d.txt
-          TZ=Asia/Tokyo date +%Y%m%d   > dc.txt
-          echo "DATE_JST=$(cat d.txt)"  >> "$GITHUB_OUTPUT"
-          echo "DATE_JST_COMPACT=$(cat dc.txt)" >> "$GITHUB_OUTPUT"
+          echo "DATE_JST=$(TZ=Asia/Tokyo date +%F)" >> $GITHUB_OUTPUT
+          echo "DATE_JST_COMPACT=$(TZ=Asia/Tokyo date +%Y%m%d)" >> $GITHUB_OUTPUT
 
   build-linux:
     needs: [meta]
