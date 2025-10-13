@@ -131,8 +131,8 @@ jobs:
           path: ${{ env.TOOLROOT }}
           key: zstd-${{ runner.os }}-${{ env.ZSTD_VERSION }}
 
-      - name: Build zstd (PIC static) if missing
-        if: steps.zstd-cache.outputs.cache-hit != 'true'
+      - name: Build zstd (PIC static) if missing (Linux)
+        if: runner.os == 'Linux' && steps.zstd-cache.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
           mkdir -p "${TOOLROOT}"
