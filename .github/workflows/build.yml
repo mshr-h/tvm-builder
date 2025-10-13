@@ -11,7 +11,6 @@ permissions:
 
 env:
   CUDA_VERSION: 12.9.0
-  tmp_dir: tmp-tvm
 
 jobs:
   build-linux:
@@ -29,17 +28,17 @@ jobs:
           submodules: recursive
           github-server-url: https://github.com
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2.19
+      - uses: astral-sh/setup-uv@v6
+        with:
+          activate-environment: "true"
+
+      - uses: hendrikmuhs/ccache-action@v1.2.19
 
       - name: Retrieve hash
         id: hash
         run: echo "HASH=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Install cuda-toolkit
-        uses: Jimver/cuda-toolkit@v0.2.27
+      - uses: Jimver/cuda-toolkit@v0.2.27
         with:
           cuda: ${{ env.CUDA_VERSION }}
           method: network
@@ -52,11 +51,10 @@ jobs:
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
             build-essential libedit-dev libxml2-dev llvm-18-dev llvm-18-tools clang-18 libpolly-18-dev
-          uv venv && source .venv/bin/activate
+          source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
 
       - name: Build zstd (PIC static)
-        shell: bash
         run: |
           set -euxo pipefail
           git clone --depth 1 https://github.com/facebook/zstd.git
@@ -72,24 +70,20 @@ jobs:
           CMAKE_LIBRARY_PATH: /usr/local/lib:${{ env.CMAKE_LIBRARY_PATH }}
           PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
         run: |
-          uv pip install . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config-18 --link-static'; -DLLVM_DIR=$(llvm-config-18 --cmakedir); -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
-          uv pip install 3rdparty/tvm-ffi/
           uv build --wheel . \
             --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config-18 --link-static'; -DLLVM_DIR=$(llvm-config-18 --cmakedir); -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
           uv build --wheel 3rdparty/tvm-ffi/
 
-      - name: Check if TVM can be imported with wheels
-        run: |
-          mkdir ${{ env.tmp_dir }}
-          uv run --directory ${{ env.tmp_dir }} python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
-
-      - name: Run unittest
+      - name: Test TVM
         env:
           TVM_TEST_TARGETS: "llvm"
         run: |
+          source .venv/bin/activate
           ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
-          PYTHONPATH="" uv run --directory ${{ env.tmp_dir }} pytest -q "$ABS_TESTS"
+          uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
+          mkdir tmp; cd tmp
+          uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+          uv run pytest -v "$ABS_TESTS"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -129,24 +123,20 @@ jobs:
 
       - name: Build python package
         run: |
-          uv pip install 3rdparty/tvm-ffi/
-          uv pip install . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_METAL=ON;"
-          uv build --wheel 3rdparty/tvm-ffi/
           uv build --wheel . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_METAL=ON;"
+            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config-18 --link-static'; -DLLVM_DIR=$(llvm-config-18 --cmakedir); -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
+          uv build --wheel 3rdparty/tvm-ffi/
 
-      - name: Check if TVM can be imported
-        run: |
-          mkdir ${{ env.tmp_dir }}
-          uv run --directory ${{ env.tmp_dir }} python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
-
-      - name: Run unittest
+      - name: Test TVM
         env:
           TVM_TEST_TARGETS: "llvm"
         run: |
+          source .venv/bin/activate
           ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
-          uv run --directory ${{ env.tmp_dir }} pytest tests/python/all-platform-minimal-test
+          uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
+          mkdir tmp; cd tmp
+          uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+          uv run pytest -v "$ABS_TESTS"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
