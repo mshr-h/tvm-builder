@@ -31,13 +31,11 @@ jobs:
       date_compact: ${{ steps.meta.outputs.DATE_JST_COMPACT }}
       short_sha: ${{ steps.short.outputs.SHORT_SHA }}
     steps:
-      - name: Checkout TVM (shallow)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           repository: apache/tvm
           ref: main
           fetch-depth: 1
-          submodules: recursive
 
       - name: Pin SHA
         id: pin
@@ -61,17 +59,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      max-parallel: 4
       matrix:
-        os: [ubuntu-24.04, macos-14]
+        os: [ubuntu-latest, macos-latest]
         python: ['3.10','3.11','3.12','3.13','3.14']
         include:
-          # Linux (CUDA, LLVM18)
-          - os: ubuntu-24.04
+          # Ubuntu
+          - os: ubuntu-latest
             cuda: true
             cmake_extra: "-DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON; -DUSE_LLVM='llvm-config-18 --link-static'; -DLLVM_DIR=$(llvm-config-18 --cmakedir)"
-          # macOS (Metal)
-          - os: macos-14
+          # macOS
+          - os: macos-latest
             cuda: false
             cmake_extra: "-DUSE_MLIR=ON; -DUSE_METAL=ON; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'"
 
@@ -102,17 +99,18 @@ jobs:
       - name: Install toolchain / deps (Linux)
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt update
+          sudo apt install -y \
             gcc libtinfo-dev zlib1g-dev build-essential \
             libedit-dev libxml2-dev llvm-18-dev llvm-18-tools clang-18 libpolly-18-dev
+          source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
 
       - name: Install toolchain / deps (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install llvm
-          uv venv && source .venv/bin/activate
+          source .venv/bin/activate
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
           echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
 
@@ -126,7 +124,7 @@ jobs:
       - name: Try system zstd (Linux)
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get install -y libzstd-dev || true
+          sudo apt install -y libzstd-dev || true
 
       - uses: actions/cache@v4
         id: zstd-cache
@@ -148,10 +146,6 @@ jobs:
 
       - name: Build wheels
         env:
-          # ccache launcher
-          CMAKE_C_COMPILER_LAUNCHER: ccache
-          CMAKE_CXX_COMPILER_LAUNCHER: ccache
-          CMAKE_CUDA_COMPILER_LAUNCHER: ccache
           # zstd prefix を最優先
           LIBRARY_PATH: ${{ env.TOOLROOT }}/lib:${{ env.LIBRARY_PATH }}
           CMAKE_LIBRARY_PATH: ${{ env.TOOLROOT }}/lib:${{ env.CMAKE_LIBRARY_PATH }}
@@ -178,7 +172,6 @@ jobs:
             dist/tvm-*.whl
             3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
           if-no-files-found: error
-          retention-days: 7
 
   release:
     name: Create GitHub Releases
