@@ -142,10 +142,9 @@ jobs:
           uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
           uv run pytest -v "$ABS_TESTS"
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-py${{ matrix.python-version }}
+          name: wheels-${{ runner.os }}-py${{ matrix.python-version }}
           path: |
             dist/tvm-*.whl
             3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
