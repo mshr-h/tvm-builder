@@ -81,7 +81,7 @@ jobs:
           source .venv/bin/activate
           ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
           uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
-          mkdir tmp; cd tmp
+          cd ..; mkdir tmp; cd tmp;
           uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
           uv run pytest -v "$ABS_TESTS"
 
@@ -134,7 +134,7 @@ jobs:
           source .venv/bin/activate
           ABS_TESTS="$PWD/tests/python/all-platform-minimal-test"
           uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
-          mkdir tmp; cd tmp
+          cd ..; mkdir tmp; cd tmp;
           uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
           uv run pytest -v "$ABS_TESTS"
 
