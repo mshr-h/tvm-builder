@@ -180,27 +180,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download all wheels
+      - name: Download and merge artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./all-wheels
-
-      - name: Flatten & dedupe wheels
-        shell: bash
-        run: |
-          mkdir -p upload
-          # 同名ファイルは最初に見つかったものだけを採用（重複はスキップ）
-          while IFS= read -r -d '' f; do
-            bn="$(basename "$f")"
-            if [[ -e "upload/$bn" ]]; then
-              echo "skip duplicate: $bn"
-            else
-              cp "$f" "upload/$bn"
-            fi
-          done < <(find all-wheels -type f -name '*.whl' -print0)
-      
-          echo "Final upload set:"
-          ls -al upload
+          path: upload
+          merge-multiple: true
 
       - uses: softprops/action-gh-release@v2.3.3
         with:
