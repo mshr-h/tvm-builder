@@ -121,7 +121,7 @@ jobs:
           fi
       - name: Build python package
         run: |
-          uv build --wheel . --config-settings=cmake.args="${{ env.TVM_CMAKE_ARGS }}"
+          uv build --wheel . --config-settings=cmake.args=${{ env.TVM_CMAKE_ARGS }}
           uv build --wheel 3rdparty/tvm-ffi/
 
       - name: Test TVM
