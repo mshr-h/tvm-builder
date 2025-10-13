@@ -112,22 +112,16 @@ jobs:
           echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/zz-local.conf
           sudo ldconfig
 
-      - name: Build python package (Linux)
-        if: runner.os == 'Linux'
-        env:
-          LIBRARY_PATH: /usr/local/lib:${{ env.LIBRARY_PATH }}
-          CMAKE_LIBRARY_PATH: /usr/local/lib:${{ env.CMAKE_LIBRARY_PATH }}
-          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${{ env.PKG_CONFIG_PATH }}
+      - name: Define CMake args
         run: |
-          uv build --wheel . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='llvm-config-18 --link-static'; -DLLVM_DIR=$(llvm-config-18 --cmakedir); -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON"
-          uv build --wheel 3rdparty/tvm-ffi/
-
-      - name: Build python package (macOS)
-        if: runner.os == 'macOS'
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            echo 'TVM_CMAKE_ARGS=-G Ninja; -DUSE_LLVM="llvm-config-18 --link-static"; -DLLVM_DIR=$(llvm-config-18 --cmakedir); -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON' >> $GITHUB_ENV
+          else
+            echo 'TVM_CMAKE_ARGS=-G Ninja; -DUSE_LLVM="$(brew --prefix llvm)/bin/llvm-config --link-static"; -DUSE_MLIR=ON; -DUSE_METAL=ON' >> $GITHUB_ENV
+          fi
+      - name: Build python package
         run: |
-          uv build --wheel . \
-            --config-settings=cmake.args="-G Ninja; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_METAL=ON;"
+          uv build --wheel . --config-settings=cmake.args="${TVM_CMAKE_ARGS}"
           uv build --wheel 3rdparty/tvm-ffi/
 
       - name: Test TVM
