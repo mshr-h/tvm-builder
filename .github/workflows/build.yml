@@ -185,10 +185,6 @@ jobs:
           path: upload
           merge-multiple: true
 
-      - name: Show upload directory
-        run: |
-          ls -al upload
-
       - uses: softprops/action-gh-release@v2.3.3
         with:
           name: Apache TVM Nightly (${{ needs.meta.outputs.DATE_JST }}) [tvm ${{ needs.meta.outputs.SHORT_SHA }}]
@@ -198,7 +194,8 @@ jobs:
             CUDA: ${{ env.CUDA_VERSION }} (Linux only)
             Built (JST): ${{ needs.meta.outputs.DATE_JST }}
           files: |
-            upload/*
+            upload/dist/*.whl
+            upload/3rdparty/tvm-ffi/dist/*.whl
           prerelease: true
           fail_on_unmatched_files: true
 
@@ -217,6 +214,7 @@ jobs:
             CUDA: ${{ env.CUDA_VERSION }} (Linux only)
             Latest build (JST): ${{ needs.meta.outputs.DATE_JST }}
           files: |
-            upload/*
+            upload/dist/*.whl
+            upload/3rdparty/tvm-ffi/dist/*.whl
           prerelease: true
           fail_on_unmatched_files: true
