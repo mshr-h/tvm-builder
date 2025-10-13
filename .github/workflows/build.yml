@@ -26,13 +26,13 @@ jobs:
         id: tvm
         with:
           script: |
-            const res = await github.rest.git.getRef({
+            const { data } = await github.rest.git.getRef({
               owner: 'apache',
               repo: 'tvm',
               ref: 'heads/main',
             });
-            core.setOutput('HASH', res.object.sha);
-            core.setOutput('SHORT_SHA', res.object.sha.substring(0,8));
+            core.setOutput('HASH', data.object.sha);
+            core.setOutput('SHORT_SHA', data.object.sha.substring(0,8));
       - id: date
         run: |
           echo "DATE_JST=$(TZ=Asia/Tokyo date +%F)" >> $GITHUB_OUTPUT
@@ -63,7 +63,25 @@ jobs:
         with:
           activate-environment: "true"
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', '3rdparty/tvm-ffi/pyproject.toml', 'CMakeLists.txt') }}
+          restore-keys: |
+            uv-${{ runner.os }}-py${{ matrix.python-version }}-
+
       - uses: hendrikmuhs/ccache-action@v1.2.19
+        with:
+          key: ccache-${{ runner.os }}-py${{ matrix.python-version }}-llvm18-cuda${{ env.CUDA_VERSION }}-${{ needs.meta.outputs.SHORT_SHA }}
+          restore-keys: |
+            ccache-${{ runner.os }}-py${{ matrix.python-version }}-llvm18-cuda${{ env.CUDA_VERSION }}-
+          max-size: 5G
+
+      - name: Configure ccache
+        run: |
+          echo "CCACHE_DIR=$HOME/.cache/ccache" >> $GITHUB_ENV
+          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
+          echo "CCACHE_MAXSIZE=5G" >> $GITHUB_ENV
 
       - uses: Jimver/cuda-toolkit@v0.2.27
         with:
@@ -138,7 +156,25 @@ jobs:
         with:
           activate-environment: "true"
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', '3rdparty/tvm-ffi/pyproject.toml', 'CMakeLists.txt') }}
+          restore-keys: |
+            uv-${{ runner.os }}-py${{ matrix.python-version }}-
+
       - uses: hendrikmuhs/ccache-action@v1.2.19
+        with:
+          key: ccache-${{ runner.os }}-py${{ matrix.python-version }}-llvm18-cuda${{ env.CUDA_VERSION }}-${{ needs.meta.outputs.SHORT_SHA }}
+          restore-keys: |
+            ccache-${{ runner.os }}-py${{ matrix.python-version }}-llvm18-cuda${{ env.CUDA_VERSION }}-
+          max-size: 5G
+
+      - name: Configure ccache
+        run: |
+          echo "CCACHE_DIR=$HOME/.cache/ccache" >> $GITHUB_ENV
+          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
+          echo "CCACHE_MAXSIZE=5G" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
