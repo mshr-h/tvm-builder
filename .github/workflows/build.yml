@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CUDA_VERSION: 12.9.0
+  CUDA_VERSION: 13.0.2
 
 jobs:
   meta:
@@ -80,13 +80,14 @@ jobs:
         run: |
           echo "CCACHE_DIR=$HOME/.cache/ccache" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=5G" >> $GITHUB_ENV
+          echo "CCACHE_MAXSIZE=2G" >> $GITHUB_ENV
 
-      - uses: Jimver/cuda-toolkit@v0.2.27
+      - uses: Jimver/cuda-toolkit@v0.2.29
         if: runner.os == 'Linux'
         with:
           cuda: ${{ env.CUDA_VERSION }}
           method: network
+          log-file-suffix: '${{matrix.os}}.txt'
 
       - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
