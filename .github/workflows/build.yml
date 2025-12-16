@@ -93,13 +93,15 @@ jobs:
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
             build-essential libedit-dev libxml2-dev llvm-18-dev llvm-18-tools clang-18 libpolly-18-dev
-          uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          uv pip install -U pip numpy cmake ninja wheel cython build setuptools
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install llvm
-          uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
+          uv pip install -U pip numpy cmake ninja wheel cython build setuptools
 
       - name: Build zstd (PIC static)
         if: runner.os == 'Linux'
@@ -111,6 +113,7 @@ jobs:
           sudo make -C zstd install PREFIX=/usr/local
           echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/zz-local.conf
           sudo ldconfig
+          rm -rf zstd
 
       - name: Define CMake args
         run: |
