@@ -95,7 +95,7 @@ jobs:
             build-essential libedit-dev libxml2-dev llvm-18-dev llvm-18-tools clang-18 libpolly-18-dev
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
-          uv pip install -U pip numpy cmake ninja wheel cython build setuptools
+          uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
