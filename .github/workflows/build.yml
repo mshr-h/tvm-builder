@@ -4,7 +4,7 @@ on:
   push:
     branches: 'main'
   schedule:
-    - cron: "0 17 * * *"
+    - cron: "0 17 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -160,8 +160,8 @@ jobs:
 
       - uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
-          name: Apache TVM Nightly (${{ needs.meta.outputs.DATE_JST }}) [tvm ${{ needs.meta.outputs.SHORT_SHA }}]
-          tag_name: nightly-${{ needs.meta.outputs.DATE_JST_COMPACT }}-tvm-${{ needs.meta.outputs.SHORT_SHA }}
+          name: Apache TVM Weekly (${{ needs.meta.outputs.DATE_JST }}) [tvm ${{ needs.meta.outputs.SHORT_SHA }}]
+          tag_name: weekly-${{ needs.meta.outputs.DATE_JST_COMPACT }}-tvm-${{ needs.meta.outputs.SHORT_SHA }}
           body: |
             tvm: ${{ needs.meta.outputs.HASH }}
             CUDA: ${{ env.CUDA_VERSION }} (Linux only)
@@ -172,16 +172,16 @@ jobs:
           prerelease: true
           fail_on_unmatched_files: true
 
-      - name: Delete nightly tag
+      - name: Delete weekly tag
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete nightly --cleanup-tag --yes || true
+          gh release delete weekly --cleanup-tag --yes || true
 
       - uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
-          name: Apache TVM Nightly (latest)
-          tag_name: nightly
+          name: Apache TVM Weekly (latest)
+          tag_name: weekly
           body: |
             tvm: ${{ needs.meta.outputs.HASH }}
             CUDA: ${{ env.CUDA_VERSION }} (Linux only)
