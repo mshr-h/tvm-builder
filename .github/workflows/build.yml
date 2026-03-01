@@ -108,7 +108,7 @@ jobs:
         uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2.0.9
         if: runner.os == 'Windows'
         with:
-          version: "21.0"
+          version: "21.1.8"
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
