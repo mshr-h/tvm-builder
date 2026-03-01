@@ -140,7 +140,7 @@ jobs:
       - name: Define CMake args (Windows)
         if: runner.os == 'Windows'
         run: |
-          echo "TODO"
+          echo "TVM_CMAKE_ARGS=\"-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo\"" >> $env:GITHUB_ENV
 
       - name: Build python package
         run: |
