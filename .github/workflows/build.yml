@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
     runs-on: ${{ matrix.os }}
     steps:
@@ -104,7 +104,18 @@ jobs:
           brew install llvm
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools
 
-      - name: Build zstd (PIC static)
+      - name: Install LLVM and Clang (Windows)
+        uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2.0.9
+        if: runner.os == 'Windows'
+        with:
+          version: "21.0"
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          uv pip install -U pip numpy cmake ninja wheel cython build setuptools
+
+      - name: Build zstd (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           set -euxo pipefail
@@ -116,13 +127,21 @@ jobs:
           sudo ldconfig
           rm -rf zstd
 
-      - name: Define CMake args
+      - name: Define CMake args (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            echo "TVM_CMAKE_ARGS=\"-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM='llvm-config-18 --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON\"" >> $GITHUB_ENV
-          else
-            echo "TVM_CMAKE_ARGS=\"-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_METAL=ON\"" >> $GITHUB_ENV
-          fi
+          echo "TVM_CMAKE_ARGS=\"-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM='llvm-config-18 --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON\"" >> $GITHUB_ENV
+
+      - name: Define CMake args (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "TVM_CMAKE_ARGS=\"-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM='$(brew --prefix llvm)/bin/llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_METAL=ON\"" >> $GITHUB_ENV
+
+      - name: Define CMake args (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "TODO"
+
       - name: Build python package
         run: |
           uv build --wheel . --config-settings=cmake.args=${{ env.TVM_CMAKE_ARGS }}
