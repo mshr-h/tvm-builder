@@ -85,10 +85,12 @@ jobs:
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools
 
       - name: Install LLVM and Clang (Windows)
-        uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2.0.9
         if: runner.os == 'Windows'
+        uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2.0.9
         with:
           version: "21.1.8"
+          directory: ${{ runner.temp }}\llvm
+          force-url: https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/clang+llvm-21.1.8-x86_64-pc-windows-msvc.tar.xz
 
       - name: Probe LLVM layout (Windows)
         if: runner.os == 'Windows'
@@ -128,8 +130,10 @@ jobs:
 
       - name: Define CMake args (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          echo "TVM_CMAKE_ARGS='-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM=ON'" >> $env:GITHUB_ENV
+          $p = ($env:LLVM_PATH -replace '\\','/')
+          echo "TVM_CMAKE_ARGS='-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DLLVM_DIR=$p/lib/cmake/llvm; -DUSE_LLVM=ON'" >> $env:GITHUB_ENV
 
       - name: Build python package
         run: |
