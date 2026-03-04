@@ -90,6 +90,15 @@ jobs:
         with:
           version: "21.1.8"
 
+      - name: Probe LLVM layout (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Write-Host "LLVM_PATH=$env:LLVM_PATH"
+          Write-Host "LLVMConfig.cmake exists? " (Test-Path "$env:LLVM_PATH\lib\cmake\llvm\LLVMConfig.cmake")
+          Write-Host "llvm-config.exe exists? " (Test-Path "$env:LLVM_PATH\bin\llvm-config.exe")
+          Get-ChildItem "$env:LLVM_PATH\lib\cmake\llvm" -ErrorAction SilentlyContinue
+
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
         run: |
