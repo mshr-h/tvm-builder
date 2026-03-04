@@ -144,9 +144,13 @@ jobs:
         env:
           TVM_TEST_TARGETS: "llvm"
         run: |
-          uv pip install 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl
+          mkdir tmp
+          cp 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl tmp
+          cd tmp
+          uv venv
+          uv pip install apache_tvm_ffi-*.whl tvm-*.whl
           uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
-          uv run pytest -v "tests/python/all-platform-minimal-test"
+          uv run pytest -v "../tests/python/all-platform-minimal-test"
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
