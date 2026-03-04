@@ -120,7 +120,7 @@ jobs:
       - name: Define CMake args (Windows)
         if: runner.os == 'Windows'
         run: |
-          echo "TVM_CMAKE_ARGS='-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo'" >> $env:GITHUB_ENV
+          echo "TVM_CMAKE_ARGS='-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM=ON'" >> $env:GITHUB_ENV
 
       - name: Build python package
         run: |
@@ -128,7 +128,6 @@ jobs:
           uv build --wheel 3rdparty/tvm-ffi/
 
       - name: Test TVM
-        if: runner.os == 'Linux'
         env:
           TVM_TEST_TARGETS: "llvm"
         run: |
