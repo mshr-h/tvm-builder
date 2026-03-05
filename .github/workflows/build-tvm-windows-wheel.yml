@@ -1,0 +1,98 @@
+name: build-tvm-windows-wheel
+
+on:
+  workflow_dispatch:
+  # 必要なら有効化
+  # push:
+  #   branches: [ main ]
+  # pull_request:
+
+jobs:
+  wheel:
+    runs-on: windows-2022
+
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        shell: pwsh
+
+    env:
+      PYTHON_VERSION: "3.12"
+      LLVM_VERSION: "21.1.8"
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.10.8"
+
+      - name: Install Python with uv
+        run: |
+          uv python install $env:PYTHON_VERSION --managed-python
+          uv venv .venv-build --python $env:PYTHON_VERSION --managed-python
+          $buildPy = (Resolve-Path ".venv-build\Scripts\python.exe").Path
+          & $buildPy --version
+
+      - name: Download official LLVM archive
+        run: |
+          $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/clang%2Bllvm-$env:LLVM_VERSION-x86_64-pc-windows-msvc.tar.xz"
+          Invoke-WebRequest -Uri $url -OutFile llvm.tar.xz
+
+          7z x llvm.tar.xz -y | Out-Null
+          7z x llvm.tar -y -ollvm | Out-Null
+
+          $llvmRoot = (Get-ChildItem llvm | Where-Object { $_.PSIsContainer } | Select-Object -First 1).FullName
+          $llvmRootUnix = $llvmRoot -replace '\\','/'
+          $llvmDir = (Resolve-Path "$llvmRoot\lib\cmake\llvm").Path -replace '\\','/'
+
+          "LLVM_ROOT=$llvmRootUnix" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "LLVM_DIR=$llvmDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "$llvmRoot\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+          Write-Host "LLVM_ROOT=$llvmRootUnix"
+          Write-Host "LLVM_DIR=$llvmDir"
+
+      - name: Build wheel (LLVM enabled)
+        run: |
+          $env:CMAKE_ARGS = "-DUSE_LLVM=ON -DLLVM_DIR=$env:LLVM_DIR -DBUILD_TESTING=OFF -DTVM_BUILD_PYTHON_MODULE=ON"
+          uv build --wheel
+          Get-ChildItem dist\*.whl | Format-Table -AutoSize
+
+      - name: Create clean test venv with uv
+        run: |
+          uv venv .venv-test --python $env:PYTHON_VERSION --managed-python --clear
+
+      - name: Install wheel and test dependencies
+        run: |
+          $testPy = (Resolve-Path ".venv-test\Scripts\python.exe").Path
+          $wheel = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName
+
+          # TVM 側 CI に近い形で local tvm-ffi と必要依存を明示導入
+          uv pip install --python $testPy .\3rdparty\tvm-ffi\
+          uv pip install --python $testPy --no-deps $wheel
+          uv pip install --python $testPy `
+            pytest pytest-xdist pytest-rerunfailures `
+            psutil cloudpickle ml_dtypes numpy packaging scipy tornado typing_extensions
+
+          & $testPy -c "import tvm; print(tvm.__file__)"
+
+      - name: Run all-platform-minimal-test
+        run: |
+          $testPy = (Resolve-Path ".venv-test\Scripts\python.exe").Path
+          $env:PYTHONNOUSERSITE = "1"
+          & $testPy -m pytest -v tests/python/all-platform-minimal-test
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tvm-wheel-windows-amd64
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 14
