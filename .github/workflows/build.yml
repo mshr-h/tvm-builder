@@ -11,7 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CUDA_VERSION: 13.0.2
+  LLVM_VERSION: "21.1.8"
+  CUDA_VERSION: "13.0.2"
 
 jobs:
   meta:
@@ -84,22 +85,21 @@ jobs:
           brew install llvm
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools
 
-      - name: Install LLVM and Clang (Windows)
+      - name: Download official LLVM archive
         if: runner.os == 'Windows'
-        uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2.0.9
-        with:
-          version: "21.1.8"
-          directory: ${{ runner.temp }}\llvm
-          force-url: https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/clang+llvm-21.1.8-x86_64-pc-windows-msvc.tar.xz
-
-      - name: Probe LLVM layout (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
         run: |
-          Write-Host "LLVM_PATH=$env:LLVM_PATH"
-          Write-Host "LLVMConfig.cmake exists? " (Test-Path "$env:LLVM_PATH\lib\cmake\llvm\LLVMConfig.cmake")
-          Write-Host "llvm-config.exe exists? " (Test-Path "$env:LLVM_PATH\bin\llvm-config.exe")
-          Get-ChildItem "$env:LLVM_PATH\lib\cmake\llvm" -ErrorAction SilentlyContinue
+          $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/clang%2Bllvm-$env:LLVM_VERSION-x86_64-pc-windows-msvc.tar.xz"
+          Invoke-WebRequest -Uri $url -OutFile llvm.tar.xz
+          7z x llvm.tar.xz -y | Out-Null
+          7z x llvm.tar -y -ollvm | Out-Null
+          $llvmRoot = (Get-ChildItem llvm | Where-Object { $_.PSIsContainer } | Select-Object -First 1).FullName
+          $llvmRootUnix = $llvmRoot -replace '\\','/'
+          $llvmDir = (Resolve-Path "$llvmRoot\lib\cmake\llvm").Path -replace '\\','/'
+          "LLVM_ROOT=$llvmRootUnix" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "LLVM_DIR=$llvmDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "$llvmRoot\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          Write-Host "LLVM_ROOT=$llvmRootUnix"
+          Write-Host "LLVM_DIR=$llvmDir"
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
@@ -132,8 +132,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $p = ($env:LLVM_PATH -replace '\\','/')
-          echo "TVM_CMAKE_ARGS='-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DLLVM_DIR=$p/lib/cmake/llvm; -DUSE_LLVM=ON'" >> $env:GITHUB_ENV
+          echo "TVM_CMAKE_ARGS='-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM=ON -DLLVM_DIR=$env:LLVM_DIR'" >> $env:GITHUB_ENV
 
       - name: Build python package
         run: |
