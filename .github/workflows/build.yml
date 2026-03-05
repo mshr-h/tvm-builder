@@ -132,7 +132,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          echo "TVM_CMAKE_ARGS='-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM=ON -DLLVM_DIR=$env:LLVM_DIR'" >> $env:GITHUB_ENV
+          echo "TVM_CMAKE_ARGS='-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM=ON; -DLLVM_DIR=$env:LLVM_DIR'" >> $env:GITHUB_ENV
 
       - name: Build python package
         run: |
