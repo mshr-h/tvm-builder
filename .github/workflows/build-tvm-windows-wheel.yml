@@ -2,10 +2,6 @@ name: build-tvm-windows-wheel
 
 on:
   workflow_dispatch:
-  # 必要なら有効化
-  # push:
-  #   branches: [ main ]
-  # pull_request:
 
 jobs:
   meta:
@@ -32,16 +28,14 @@ jobs:
           echo "DATE_JST=$(TZ=Asia/Tokyo date +%F)" >> $GITHUB_OUTPUT
           echo "DATE_JST_COMPACT=$(TZ=Asia/Tokyo date +%Y%m%d)" >> $GITHUB_OUTPUT
 
-  wheel:
+  build:
     needs: [meta]
-    runs-on: windows-2022
-
-    permissions:
-      contents: read
-
-    defaults:
-      run:
-        shell: pwsh
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest]
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
+    runs-on: ${{ matrix.os }}
 
     env:
       PYTHON_VERSION: "3.12"
@@ -62,13 +56,15 @@ jobs:
           version: "0.10.8"
 
       - name: Install Python with uv
+        shell: pwsh
         run: |
-          uv python install $env:PYTHON_VERSION --managed-python
-          uv venv .venv-build --python $env:PYTHON_VERSION --managed-python
+          uv python install ${{ matrix.python-version }} --managed-python
+          uv venv .venv-build --python${{ matrix.python-version }} --managed-python
           $buildPy = (Resolve-Path ".venv-build\Scripts\python.exe").Path
           & $buildPy --version
 
       - name: Download official LLVM archive
+        shell: pwsh
         run: |
           $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/clang%2Bllvm-$env:LLVM_VERSION-x86_64-pc-windows-msvc.tar.xz"
           Invoke-WebRequest -Uri $url -OutFile llvm.tar.xz
@@ -88,16 +84,19 @@ jobs:
           Write-Host "LLVM_DIR=$llvmDir"
 
       - name: Build wheel (LLVM enabled)
+        shell: pwsh
         run: |
           $env:CMAKE_ARGS = "-DUSE_LLVM=ON -DLLVM_DIR=$env:LLVM_DIR -DBUILD_TESTING=OFF -DTVM_BUILD_PYTHON_MODULE=ON"
           uv build --wheel
           Get-ChildItem dist\*.whl | Format-Table -AutoSize
 
       - name: Create clean test venv with uv
+        shell: pwsh
         run: |
-          uv venv .venv-test --python $env:PYTHON_VERSION --managed-python --clear
+          uv venv .venv-test --python ${{ matrix.python-version }} --managed-python --clear
 
       - name: Install wheel and test dependencies
+        shell: pwsh
         run: |
           $testPy = (Resolve-Path ".venv-test\Scripts\python.exe").Path
           $wheel = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName
@@ -112,6 +111,7 @@ jobs:
           & $testPy -c "import tvm; print(tvm.__file__)"
 
       - name: Run all-platform-minimal-test
+        shell: pwsh
         run: |
           $testPy = (Resolve-Path ".venv-test\Scripts\python.exe").Path
           $env:PYTHONNOUSERSITE = "1"
