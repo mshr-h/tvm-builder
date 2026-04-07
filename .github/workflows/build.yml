@@ -74,7 +74,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt update && sudo apt install -y gcc libtinfo-dev zlib1g-dev \
-            build-essential libedit-dev libxml2-dev llvm-18-dev llvm-18-tools clang-18 libpolly-18-dev
+            build-essential libedit-dev libxml2-dev
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools pytest
@@ -85,7 +85,23 @@ jobs:
           brew install llvm
           uv pip install -U pip numpy cmake ninja wheel cython build setuptools
 
-      - name: Download official LLVM archive
+      - name: Download official LLVM archive (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -euxo pipefail
+          url="https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/LLVM-${LLVM_VERSION}-Linux-X64.tar.xz"
+          curl -fSL "$url" -o llvm.tar.xz
+          tar xf llvm.tar.xz
+          mv LLVM-${LLVM_VERSION}-Linux-X64 "${GITHUB_WORKSPACE}/llvm"
+          rm llvm.tar.xz
+          LLVM_ROOT="${GITHUB_WORKSPACE}/llvm"
+          echo "LLVM_ROOT=${LLVM_ROOT}" >> $GITHUB_ENV
+          echo "LLVM_DIR=${LLVM_ROOT}/lib/cmake/llvm" >> $GITHUB_ENV
+          echo "${LLVM_ROOT}/bin" >> $GITHUB_PATH
+          echo "LLVM_ROOT=${LLVM_ROOT}"
+          echo "LLVM_DIR=${LLVM_ROOT}/lib/cmake/llvm"
+
+      - name: Download official LLVM archive (Windows)
         if: runner.os == 'Windows'
         run: |
           $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/clang%2Bllvm-$env:LLVM_VERSION-x86_64-pc-windows-msvc.tar.xz"
@@ -121,7 +137,7 @@ jobs:
       - name: Define CMake args (Ubuntu)
         if: runner.os == 'Linux'
         run: |
-          echo "TVM_CMAKE_ARGS=\"-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM='llvm-config-18 --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON\"" >> $GITHUB_ENV
+          echo "TVM_CMAKE_ARGS=\"-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM='${LLVM_ROOT}/bin/llvm-config --link-static'; -DUSE_MLIR=ON; -DUSE_CUDA=ON; -DUSE_TENSORRT_CODEGEN=ON\"" >> $GITHUB_ENV
 
       - name: Define CMake args (macOS)
         if: runner.os == 'macOS'
