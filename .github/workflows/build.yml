@@ -160,7 +160,7 @@ jobs:
           TVM_TEST_TARGETS: "llvm"
         run: |
           mkdir tmp
-          cp 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/tvm-*.whl tmp
+          cp 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/apache_tvm-*.whl tmp
           cd tmp
           uv venv
           uv pip install apache_tvm_ffi-*.whl tvm-*.whl
