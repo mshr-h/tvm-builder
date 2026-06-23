@@ -156,6 +156,7 @@ jobs:
           uv build --wheel 3rdparty/tvm-ffi/
 
       - name: Test TVM
+        shell: bash
         env:
           TVM_TEST_TARGETS: "llvm"
         run: |
@@ -163,7 +164,7 @@ jobs:
           cp 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/apache_tvm-*.whl tmp
           cd tmp
           uv venv
-          uv pip install apache_tvm_ffi-*.whl tvm-*.whl
+          uv pip install apache_tvm_ffi-*.whl apache_tvm-*.whl
           uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
           uv run pytest -v "../tests/python/all-platform-minimal-test"
 
