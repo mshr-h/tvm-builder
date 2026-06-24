@@ -164,7 +164,8 @@ jobs:
           cp 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/apache_tvm-*.whl tmp
           cd tmp
           uv venv
-          uv pip install pytest apache_tvm_ffi-*.whl apache_tvm-*.whl
+          uv pip install pytest apache_tvm_ffi-*.whl
+          uv pip install --no-deps apache_tvm-*.whl
           .venv/bin/python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
           .venv/bin/pytest -v "../tests/python/all-platform-minimal-test"
 
