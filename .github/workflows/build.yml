@@ -152,8 +152,8 @@ jobs:
 
       - name: Build python package
         run: |
-          uv build --wheel . --config-settings=cmake.args=${{ env.TVM_CMAKE_ARGS }}
-          uv build --wheel 3rdparty/tvm-ffi/
+          uv build --wheel . --config-settings=cmake.args=${{ env.TVM_CMAKE_ARGS }} --verbose
+          uv build --wheel 3rdparty/tvm-ffi/ --verbose
 
       - name: Test TVM
         shell: bash
@@ -164,15 +164,15 @@ jobs:
           cp 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/apache_tvm-*.whl tmp
           cd tmp
           uv venv
-          uv pip install apache_tvm_ffi-*.whl apache_tvm-*.whl
-          uv run python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
-          uv run pytest -v "../tests/python/all-platform-minimal-test"
+          uv pip install pytest apache_tvm_ffi-*.whl apache_tvm-*.whl
+          .venv/bin/python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
+          .venv/bin/pytest -v "../tests/python/all-platform-minimal-test"
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: wheels-${{ runner.os }}-py${{ matrix.python-version }}
           path: |
-            dist/tvm-*.whl
+            dist/apache_tvm-*.whl
             3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
 
   release:
