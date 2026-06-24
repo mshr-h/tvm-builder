@@ -148,9 +148,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          echo "TVM_CMAKE_ARGS='-G Ninja; -DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM=ON; -DLLVM_DIR=$env:LLVM_DIR'" >> $env:GITHUB_ENV
+          echo "TVM_CMAKE_ARGS='-DCMAKE_BUILD_TYPE=RelWithDebInfo; -DUSE_LLVM=ON; -DLLVM_DIR=$env:LLVM_DIR'" >> $env:GITHUB_ENV
 
       - name: Build python package
+        shell: bash
         run: |
           uv build --wheel . --config-settings=cmake.args=${{ env.TVM_CMAKE_ARGS }} --verbose
           uv build --wheel 3rdparty/tvm-ffi/ --verbose
