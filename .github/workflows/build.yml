@@ -165,7 +165,7 @@ jobs:
           cp 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/apache_tvm-*.whl tmp
           cd tmp
           uv venv .test-venv
-          uv pip install --python .test-venv/bin/python pytest apache_tvm_ffi-*.whl
+          uv pip install --python .test-venv/bin/python pytest numpy apache_tvm_ffi-*.whl
           uv pip install --python .test-venv/bin/python --no-deps apache_tvm-*.whl
           .test-venv/bin/python -c "import tvm; print(tvm.__file__); print(tvm.__version__); print(tvm.support.describe()); print(tvm.support.libinfo())"
           .test-venv/bin/python -m pytest -v "../tests/python/all-platform-minimal-test"
