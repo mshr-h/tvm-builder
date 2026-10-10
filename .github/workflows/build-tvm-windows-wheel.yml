@@ -46,6 +46,8 @@ jobs:
         with:
           repository: 'apache/tvm'
           ref: ${{ needs.meta.outputs.HASH }}
+          # setuptools-scm needs the history/tags of TVM and its FFI submodule.
+          fetch-depth: 0
           submodules: recursive
           github-server-url: https://github.com
 
