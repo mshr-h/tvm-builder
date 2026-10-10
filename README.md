@@ -12,6 +12,9 @@ upstream compatibility issue is resolved.
 Windows builds supply LLVM's missing `libxml2s.lib` by building libxml2 v2.9.12
 for x64 with Release, static libraries, and the static MSVC runtime, using the
 feature settings from the [LLVM 21.1.8 release build script](https://github.com/llvm/llvm-project/blob/llvmorg-21.1.8/llvm/utils/release/build_llvm_release.bat).
+TVM uses the same static MSVC runtime on Windows. The optional Z3 solver is
+disabled there because the prebuilt static Z3 library uses the dynamic MSVC
+runtime. Windows TVM builds use MSVC with Ninja and four parallel build jobs.
 
 Pull requests validate all 15 configurations, including installing both local
 wheels with their dependencies, checking LLVM support, running TVM's minimal

@@ -177,7 +177,13 @@ jobs:
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          $cmakeArgs = "-DUSE_LLVM=ON;-DLLVM_DIR=$env:LLVM_DIR;-DUSE_MLIR=OFF;-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $vsInstall = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vsInstall) { throw 'An x64 MSVC toolchain is required' }
+          & "$vsInstall/Common7/Tools/Launch-VsDevShell.ps1" -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+          $env:CMAKE_BUILD_PARALLEL_LEVEL = '4'
+          # LLVM/libxml2 use /MT; the prebuilt static Z3 wheel uses /MD.
+          $cmakeArgs = "-GNinja;-DUSE_LLVM=ON;-DLLVM_DIR=$env:LLVM_DIR;-DUSE_MLIR=OFF;-DUSE_Z3=OFF;-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"
           uv build --wheel . --config-settings "cmake.args=$cmakeArgs" --verbose
           uv build --wheel 3rdparty/tvm-ffi/ --verbose
 
