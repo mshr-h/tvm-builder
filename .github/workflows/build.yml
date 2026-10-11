@@ -86,6 +86,29 @@ jobs:
           assert sys.version_info.releaselevel == "final", "A stable Python release is required"
           PY
 
+      - name: Fix upstream Metal timer compatibility
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path("src/backend/metal/runtime/metal_device_api.mm")
+          old = "Timer(ffi::make_object<MetalTimerNode>(dev))"
+          new = "Timer(ffi::UnsafeInit{}, ffi::make_object<MetalTimerNode>(dev))"
+          text = source.read_text()
+          if old in text:
+              header = Path("include/tvm/runtime/timer.h").read_text()
+              if "Timer(ffi::UnsafeInit" not in header:
+                  raise SystemExit("Unexpected upstream Timer API; review Metal timer compatibility")
+              if text.count(old) != 1:
+                  raise SystemExit("Unexpected Metal timer call count; review compatibility fix")
+              source.write_text(text.replace(old, new))
+              print("Applied Metal timer compatibility fix for the UnsafeInit constructor")
+          else:
+              print("Upstream no longer uses the legacy Metal timer constructor")
+          PY
+
       - uses: Jimver/cuda-toolkit@b6fc3a9f3f15256d9d94ffe1254f9c5a2565cde6 # v0.2.30
         if: runner.os == 'Linux'
         with:
