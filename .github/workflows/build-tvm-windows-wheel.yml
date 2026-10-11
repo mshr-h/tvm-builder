@@ -3,6 +3,9 @@ name: build-tvm-windows-wheel
 on:
   workflow_dispatch:
 
+env:
+  LLVM_VERSION: "21.1.8"
+
 jobs:
   meta:
     runs-on: ubuntu-latest
@@ -25,8 +28,8 @@ jobs:
             core.setOutput('SHORT_SHA', data.object.sha.substring(0,8));
       - id: date
         run: |
-          echo "DATE_JST=$(TZ=Asia/Tokyo date +%F)" >> $GITHUB_OUTPUT
-          echo "DATE_JST_COMPACT=$(TZ=Asia/Tokyo date +%Y%m%d)" >> $GITHUB_OUTPUT
+          echo "DATE_JST=$(TZ=Asia/Tokyo date +%F)" >> "$GITHUB_OUTPUT"
+          echo "DATE_JST_COMPACT=$(TZ=Asia/Tokyo date +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
   build:
     needs: [meta]
@@ -34,93 +37,137 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest]
-        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14', '3.15']
     runs-on: ${{ matrix.os }}
-
     env:
-      PYTHON_VERSION: "3.12"
-      LLVM_VERSION: "21.1.8"
-
+      PYTHON_VERSION: ${{ matrix.python-version }}
     steps:
-      - name: Checkout (with submodules)
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           repository: 'apache/tvm'
           ref: ${{ needs.meta.outputs.HASH }}
+          # setuptools-scm needs the history/tags of TVM and its FFI submodule.
+          fetch-depth: 0
           submodules: recursive
           github-server-url: https://github.com
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        # Use uv's stable CPython distribution for Python 3.15.
+        if: matrix.python-version != '3.15'
         with:
-          version: "0.10.8"
+          python-version: ${{ matrix.python-version }}
 
-      - name: Install Python with uv
+      - uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+        env:
+          UV_MANAGED_PYTHON: ${{ matrix.python-version == '3.15' && 'true' || 'false' }}
+        with:
+          python-version: ${{ matrix.python-version }}
+          activate-environment: "true"
+
+      - name: Verify build Python
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+          requested = tuple(map(int, os.environ["PYTHON_VERSION"].split(".")))
+          print(sys.version)
+          assert sys.version_info[:2] == requested, "Unexpected Python version"
+          assert sys.version_info.releaselevel == "final", "A stable Python release is required"
+          PY
+
+      - name: Download official LLVM archive (Windows)
         shell: pwsh
         run: |
-          uv python install ${{ matrix.python-version }} --managed-python
-          uv venv .venv-build --python${{ matrix.python-version }} --managed-python
-          $buildPy = (Resolve-Path ".venv-build\Scripts\python.exe").Path
-          & $buildPy --version
-
-      - name: Download official LLVM archive
-        shell: pwsh
-        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
           $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/clang%2Bllvm-$env:LLVM_VERSION-x86_64-pc-windows-msvc.tar.xz"
           Invoke-WebRequest -Uri $url -OutFile llvm.tar.xz
-
           7z x llvm.tar.xz -y | Out-Null
           7z x llvm.tar -y -ollvm | Out-Null
-
           $llvmRoot = (Get-ChildItem llvm | Where-Object { $_.PSIsContainer } | Select-Object -First 1).FullName
           $llvmRootUnix = $llvmRoot -replace '\\','/'
           $llvmDir = (Resolve-Path "$llvmRoot\lib\cmake\llvm").Path -replace '\\','/'
-
           "LLVM_ROOT=$llvmRootUnix" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "LLVM_DIR=$llvmDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "$llvmRoot\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
           Write-Host "LLVM_ROOT=$llvmRootUnix"
           Write-Host "LLVM_DIR=$llvmDir"
 
-      - name: Build wheel (LLVM enabled)
+      - name: Install dependencies (Windows)
         shell: pwsh
         run: |
-          $env:CMAKE_ARGS = "-DUSE_LLVM=ON -DLLVM_DIR=$env:LLVM_DIR -DBUILD_TESTING=OFF -DTVM_BUILD_PYTHON_MODULE=ON"
-          uv build --wheel
-          Get-ChildItem dist\*.whl | Format-Table -AutoSize
+          $PSNativeCommandUseErrorActionPreference = $true
+          uv pip install -U pip numpy cmake ninja wheel cython build setuptools
 
-      - name: Create clean test venv with uv
+      - name: Build LLVM's libxml2 dependency (Windows)
         shell: pwsh
         run: |
-          uv venv .venv-test --python ${{ matrix.python-version }} --managed-python --clear
+          $PSNativeCommandUseErrorActionPreference = $true
+          Invoke-WebRequest -Uri https://github.com/GNOME/libxml2/archive/refs/tags/v2.9.12.tar.gz -OutFile libxml2.tar.gz
+          tar xf libxml2.tar.gz
 
-      - name: Install wheel and test dependencies
+          # Match llvmorg-21.1.8/llvm/utils/release/build_llvm_release.bat.
+          $libxmlArgs = @(
+            '-DCMAKE_BUILD_TYPE=Release'
+            "-DCMAKE_INSTALL_PREFIX=$env:GITHUB_WORKSPACE/libxml2-install"
+            '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded'
+            '-DBUILD_SHARED_LIBS=OFF'
+            '-DLIBXML2_WITH_OUTPUT=ON'
+            '-DLIBXML2_WITH_THREADS=ON'
+            '-DLIBXML2_WITH_TREE=ON'
+          )
+          $disabledFeatures = @(
+            'C14N', 'CATALOG', 'DEBUG', 'DOCB', 'FTP', 'HTML', 'HTTP', 'ICONV',
+            'ICU', 'ISO8859X', 'LEGACY', 'LZMA', 'MEM_DEBUG', 'MODULES', 'PATTERN',
+            'PROGRAMS', 'PUSH', 'PYTHON', 'READER', 'REGEXPS', 'RUN_DEBUG', 'SAX1',
+            'SCHEMAS', 'SCHEMATRON', 'TESTS', 'THREAD_ALLOC', 'VALID', 'WRITER',
+            'XINCLUDE', 'XPATH', 'XPTR', 'ZLIB'
+          )
+          $libxmlArgs += $disabledFeatures | ForEach-Object { "-DLIBXML2_WITH_$_=OFF" }
+          cmake -S libxml2-2.9.12 -B libxml2-build -A x64 @libxmlArgs
+          cmake --build libxml2-build --config Release --target install --parallel
+          Copy-Item libxml2-install/lib/libxml2s.lib "$env:LLVM_ROOT/lib/libxml2s.lib"
+
+      - name: Build python packages (Windows)
         shell: pwsh
         run: |
-          $testPy = (Resolve-Path ".venv-test\Scripts\python.exe").Path
-          $wheel = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName
+          $PSNativeCommandUseErrorActionPreference = $true
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $vsInstall = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vsInstall) { throw 'An x64 MSVC toolchain is required' }
+          & "$vsInstall/Common7/Tools/Launch-VsDevShell.ps1" -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+          $env:CMAKE_BUILD_PARALLEL_LEVEL = '4'
+          # LLVM/libxml2 use /MT; the prebuilt static Z3 wheel uses /MD.
+          $cmakeArgs = "-GNinja;-DUSE_LLVM=ON;-DLLVM_DIR=$env:LLVM_DIR;-DUSE_MLIR=OFF;-DUSE_Z3=OFF;-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"
+          uv build --wheel . --config-settings "cmake.args=$cmakeArgs" --verbose
+          uv build --wheel 3rdparty/tvm-ffi/ --verbose
 
-          # TVM 側 CI に近い形で local tvm-ffi と必要依存を明示導入
-          uv pip install --python $testPy .\3rdparty\tvm-ffi\
-          uv pip install --python $testPy --no-deps $wheel
-          uv pip install --python $testPy `
-            pytest pytest-xdist pytest-rerunfailures `
-            psutil cloudpickle ml_dtypes numpy packaging scipy tornado typing_extensions
-
-          & $testPy -c "import tvm; print(tvm.__file__)"
-
-      - name: Run all-platform-minimal-test
-        shell: pwsh
+      - name: Test TVM
+        shell: bash
+        env:
+          TVM_TEST_TARGETS: "llvm"
+          TVM_WHEEL_EXPECT_LLVM: "1"
+          PYTHONNOUSERSITE: "1"
         run: |
-          $testPy = (Resolve-Path ".venv-test\Scripts\python.exe").Path
-          $env:PYTHONNOUSERSITE = "1"
-          & $testPy -m pytest -v tests/python/all-platform-minimal-test
+          mkdir tmp
+          cp 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/apache_tvm-*.whl tmp
+          cd tmp
+          uv venv .test-venv --python "$PYTHON_VERSION"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            test_python=".test-venv/Scripts/python.exe"
+          else
+            test_python=".test-venv/bin/python"
+          fi
+          uv pip install --python "$test_python" pytest apache_tvm_ffi-*.whl apache_tvm-*.whl
+          uv pip check --python "$test_python"
+          "$test_python" -c "import tvm, tvm_ffi; print(tvm.__file__); print(tvm_ffi.__file__); print(tvm.__version__); tvm.support.describe(); assert tvm.runtime.enabled('llvm'), 'LLVM support is required'"
+          "$test_python" -m pytest -v "../tests/python/all-platform-minimal-test"
 
-      - name: Upload wheel artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: tvm-wheel-windows-amd64
-          path: dist/*.whl
-          if-no-files-found: error
+          name: tvm-wheel-windows-amd64-py${{ matrix.python-version }}
           retention-days: 14
+          if-no-files-found: error
+          path: |
+            dist/apache_tvm-*.whl
+            3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
