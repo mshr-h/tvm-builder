@@ -92,18 +92,19 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           source = Path("src/backend/metal/runtime/metal_device_api.mm")
-          old = "Timer(ffi::make_object<MetalTimerNode>(dev))"
-          new = "Timer(ffi::UnsafeInit{}, ffi::make_object<MetalTimerNode>(dev))"
+          old = re.compile(r"\bTimer\(\s*ffi::make_object<")
+          new = "Timer(ffi::UnsafeInit{}, ffi::make_object<"
           text = source.read_text()
-          if old in text:
+          if old.search(text):
               header = Path("include/tvm/runtime/timer.h").read_text()
               if "Timer(ffi::UnsafeInit" not in header:
                   raise SystemExit("Unexpected upstream Timer API; review Metal timer compatibility")
-              if text.count(old) != 1:
+              if len(old.findall(text)) != 1:
                   raise SystemExit("Unexpected Metal timer call count; review compatibility fix")
-              source.write_text(text.replace(old, new))
+              source.write_text(old.sub(new, text))
               print("Applied Metal timer compatibility fix for the UnsafeInit constructor")
           else:
               print("Upstream no longer uses the legacy Metal timer constructor")
