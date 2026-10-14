@@ -9,7 +9,6 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
-import sys
 import sysconfig
 import time
 import tomllib
@@ -93,6 +92,7 @@ def configure():
     write_report({
         "os": os.environ["RUNNER_OS"],
         "python": platform.python_version(),
+        "cpus": os.cpu_count(),
         "source": source,
         "ffi_source": output(["git", "-C", "3rdparty/tvm-ffi", "rev-parse", "HEAD"]),
         "workflow_sha": os.environ["GITHUB_SHA"],
@@ -117,6 +117,9 @@ def restored():
 
 
 def build():
+    # sccache treats RECACHE as a presence flag: even "0" forces a miss.
+    if os.environ.get("SCCACHE_RECACHE") != "1":
+        os.environ.pop("SCCACHE_RECACHE", None)
     # Restart after restore so the server sees the job's normalization/toolchain
     # environment and the fully restored on-disk cache.
     subprocess.run(["sccache", "--stop-server"], check=False)
@@ -149,7 +152,12 @@ def build():
         stats = json.loads(output(["sccache", "--show-stats", "--stats-format=json"]))
         (METRICS / f"{name}-sccache.json").write_text(json.dumps(stats, indent=2) + "\n", encoding="utf-8")
         data = load_report()
-        data["phases"].append({"name": name, "seconds": round(seconds, 3), "exit_code": result.returncode, "sccache": stats})
+        data["phases"].append({
+            "name": name, "seconds": round(seconds, 3),
+            "exit_code": result.returncode, "sccache": stats,
+            "command": command,
+            "parallel_level": os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL", "default"),
+        })
         write_report(data)
         print(f"{name}: {seconds:.1f} seconds, exit {result.returncode}", flush=True)
         if result.returncode:
