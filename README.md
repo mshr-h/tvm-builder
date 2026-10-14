@@ -7,13 +7,6 @@ enables Metal.
 Python 3.15 uses uv's managed stable CPython distribution; earlier versions use
 `actions/setup-python`.
 
-macOS builds apply a temporary compatibility fix to Metal's timer registration:
-TVM's `Timer` constructor now requires `ffi::UnsafeInit{}`, but the Metal backend
-still calls the old constructor. The fix detects the legacy constructor call
-independently of the timer class name, so upstream renames such as
-`MetalTimerNode` to `MetalTimerObj` do not bypass it. It is skipped once upstream
-removes the legacy call, preserving Metal support while building the latest TVM.
-
 MLIR is disabled because TVM's MLIR-enabled build currently fails to compile with
 an undefined `kSimplifyRewriteCanonicalRewrite` symbol. Re-enable it after the
 upstream compatibility issue is resolved.
