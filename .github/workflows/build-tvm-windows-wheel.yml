@@ -15,17 +15,36 @@ jobs:
       DATE_JST:  ${{ steps.date.outputs.DATE_JST }}
       DATE_JST_COMPACT: ${{ steps.date.outputs.DATE_JST_COMPACT }}
     steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        if: github.run_attempt != '1'
+        with:
+          name: tvm-source
+          path: source-metadata
       - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         id: tvm
         with:
           script: |
-            const { data } = await github.rest.git.getRef({
-              owner: 'apache',
-              repo: 'tvm',
-              ref: 'heads/main',
-            });
-            core.setOutput('HASH', data.object.sha);
-            core.setOutput('SHORT_SHA', data.object.sha.substring(0,8));
+            const fs = require('fs');
+            const file = 'source-metadata/tvm.json';
+            let hash;
+            if (fs.existsSync(file)) {
+              hash = JSON.parse(fs.readFileSync(file, 'utf8')).hash;
+            } else {
+              const { data } = await github.rest.git.getRef({
+                owner: 'apache', repo: 'tvm', ref: 'heads/main',
+              });
+              hash = data.object.sha;
+              fs.mkdirSync('source-metadata', { recursive: true });
+              fs.writeFileSync(file, JSON.stringify({ hash }));
+            }
+            core.setOutput('HASH', hash);
+            core.setOutput('SHORT_SHA', hash.substring(0,8));
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: github.run_attempt == '1'
+        with:
+          name: tvm-source
+          path: source-metadata/tvm.json
+          retention-days: 14
       - id: date
         run: |
           echo "DATE_JST=$(TZ=Asia/Tokyo date +%F)" >> "$GITHUB_OUTPUT"
@@ -41,6 +60,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
+      SCCACHE_CACHE_SIZE: '3G'
+      SCCACHE_IDLE_TIMEOUT: '0'
+      SCCACHE_IGNORE_SERVER_IO_ERROR: '1'
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
@@ -50,6 +72,27 @@ jobs:
           fetch-depth: 0
           submodules: recursive
           github-server-url: https://github.com
+
+      - name: Checkout CI tools
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          path: .ci
+
+      - name: Configure sccache storage
+        shell: bash
+        run: |
+          python - <<'PYTHON'
+          import os
+          from pathlib import Path
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as stream:
+              stream.write(f"SCCACHE_DIR={Path(os.environ['RUNNER_TEMP']) / 'sccache'}\n")
+          PYTHON
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: v0.18.0
+          disable_annotations: true
 
       - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         # Use uv's stable CPython distribution for Python 3.15.
@@ -128,7 +171,47 @@ jobs:
           cmake --build libxml2-build --config Release --target install --parallel
           Copy-Item libxml2-install/lib/libxml2s.lib "$env:LLVM_ROOT/lib/libxml2s.lib"
 
+      - name: Prepare stable build dependencies
+        shell: bash
+        run: python .ci/scripts/ci_build.py prepare
+
+      - name: Configure compiler cache (Windows)
+        if: runner.os == 'Windows'
+        id: cache_windows
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $vsInstall = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vsInstall) { throw 'An x64 MSVC toolchain is required' }
+          & "$vsInstall/Common7/Tools/Launch-VsDevShell.ps1" -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+          python .ci/scripts/ci_build.py configure
+
+      - name: Start cache restore timer
+        id: restore_timer
+        shell: bash
+        run: python -c 'import time; print("start=" + str(time.time()))' >> "$GITHUB_OUTPUT"
+
+      - name: Restore compiler cache
+        id: compiler_cache
+        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: ${{ steps.cache_windows.outputs.key }}
+          restore-keys: |
+            ${{ steps.cache_windows.outputs.source-prefix }}
+            ${{ steps.cache_windows.outputs.prefix }}
+
+      - name: Record cache restore
+        shell: bash
+        env:
+          RESTORE_START: ${{ steps.restore_timer.outputs.start }}
+          CACHE_HIT: ${{ steps.compiler_cache.outputs.cache-hit }}
+          CACHE_MATCHED_KEY: ${{ steps.compiler_cache.outputs.cache-matched-key }}
+        run: python .ci/scripts/ci_build.py restored
+
       - name: Build python packages (Windows)
+        id: build_windows
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
@@ -139,8 +222,16 @@ jobs:
           $env:CMAKE_BUILD_PARALLEL_LEVEL = '4'
           # LLVM/libxml2 use /MT; the prebuilt static Z3 wheel uses /MD.
           $cmakeArgs = "-GNinja;-DUSE_LLVM=ON;-DLLVM_DIR=$env:LLVM_DIR;-DUSE_MLIR=OFF;-DUSE_Z3=OFF;-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"
-          uv build --wheel . --config-settings "cmake.args=$cmakeArgs" --verbose
-          uv build --wheel 3rdparty/tvm-ffi/ --verbose
+          $env:TVM_CMAKE_ARGS = $cmakeArgs
+          python .ci/scripts/ci_build.py build
+
+      - name: Save compiler cache
+        # One writer per OS; save compilation even if wheel tests later fail.
+        if: matrix.python-version == '3.11' && steps.compiler_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: ${{ steps.cache_windows.outputs.key }}
 
       - name: Test TVM
         shell: bash
@@ -149,7 +240,7 @@ jobs:
           TVM_WHEEL_EXPECT_LLVM: "1"
           PYTHONNOUSERSITE: "1"
         run: |
-          mkdir tmp
+          mkdir -p tmp
           cp 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/apache_tvm-*.whl tmp
           cd tmp
           uv venv .test-venv --python "$PYTHON_VERSION"
@@ -160,14 +251,28 @@ jobs:
           fi
           uv pip install --python "$test_python" pytest apache_tvm_ffi-*.whl apache_tvm-*.whl
           uv pip check --python "$test_python"
-          "$test_python" -c "import tvm, tvm_ffi; print(tvm.__file__); print(tvm_ffi.__file__); print(tvm.__version__); tvm.support.describe(); assert tvm.runtime.enabled('llvm'), 'LLVM support is required'"
+          "$test_python" -X faulthandler -u -c "import tvm_ffi; print(tvm_ffi.__file__, flush=True)"
+          "$test_python" -X faulthandler -u -c "import tvm, tvm_ffi; print(tvm.__file__); print(tvm_ffi.__file__); print(tvm.__version__); tvm.support.describe(); assert tvm.runtime.enabled('llvm'), 'LLVM support is required'"
           "$test_python" -m pytest -v "../tests/python/all-platform-minimal-test"
+
+      - name: Summarize build measurements
+        if: always()
+        shell: bash
+        run: python .ci/scripts/ci_build.py summary
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: build-metrics-${{ runner.os }}-py${{ matrix.python-version }}-attempt${{ github.run_attempt }}
+          path: build-metrics/
+          retention-days: 14
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: tvm-wheel-windows-amd64-py${{ matrix.python-version }}
           retention-days: 14
           if-no-files-found: error
+          overwrite: true
           path: |
             dist/apache_tvm-*.whl
             3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl

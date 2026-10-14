@@ -24,6 +24,23 @@ tests, and uploading the wheels. Releases run only on pushes to `main` and the
 weekly schedule. The manual Windows workflow validates Python 3.11–3.15 and
 uploads a separate artifact for each Python version.
 
+Both workflows use sccache v0.18.0 for TVM and FFI compilation, including CUDA
+and Metal compiler launchers. A local cache of up to 3 GiB per OS is restored
+with `actions/cache`. Keys separate OS, architecture, and compiler/SDK versions;
+Python versions share compiler objects when their inputs match. Python 3.11
+is the sole cache writer on each OS and saves after compilation, before tests.
+New TVM revisions can restore the previous compatible snapshot; sccache checks
+the source, headers, and compiler flags before reusing an object.
+
+The job summary and `build-metrics-*` artifacts record TVM/FFI build times,
+compiler cache hits/misses, restore time, cache size, source SHAs, and toolchain
+versions. Build requirements are installed from both upstream `pyproject.toml`
+files into the job's dedicated environment to avoid random isolated-build paths.
+Every attempt removes the CMake build trees and validates the resulting wheels
+in a fresh test environment. Rerunning a workflow preserves its original TVM
+SHA in the `tvm-source` artifact, making cold/warm comparisons reproducible.
+Each new weekly run still resolves the latest TVM `main`.
+
 ## Todos
 
 - [ ] Add Google Colab notebook
