@@ -149,8 +149,6 @@ def build():
         # Preserve FFI's upstream cmake.args defaults.
         for key, value in common.items():
             command += ["--config-settings", f"cmake.define.{key}={value}"]
-        if os.name == "nt" and name == "ffi":
-            command += ["--config-settings", "cmake.define.CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"]
         result = subprocess.run(command)
         seconds = time.perf_counter() - started
         stats = json.loads(output(["sccache", "--show-stats", "--stats-format=json"]))
