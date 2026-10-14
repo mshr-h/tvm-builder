@@ -14,9 +14,9 @@ upstream compatibility issue is resolved.
 Windows builds supply LLVM's missing `libxml2s.lib` by building libxml2 v2.9.12
 for x64 with Release, static libraries, and the static MSVC runtime, using the
 feature settings from the [LLVM 21.1.8 release build script](https://github.com/llvm/llvm-project/blob/llvmorg-21.1.8/llvm/utils/release/build_llvm_release.bat).
-TVM uses the same static MSVC runtime on Windows. The optional Z3 solver is
+TVM and FFI use the same static MSVC runtime on Windows. The optional Z3 solver is
 disabled there because the prebuilt static Z3 library uses the dynamic MSVC
-runtime. Windows TVM builds use MSVC with Ninja and four parallel build jobs.
+runtime. Windows wheel builds use MSVC with Ninja and four parallel build jobs.
 
 Pull requests validate all 15 configurations, including installing both local
 wheels with their dependencies, checking LLVM support, running TVM's minimal
@@ -46,6 +46,12 @@ For a controlled benchmark, label a PR `cache-benchmark` before pushing:
 attempt 1 forces recompilation in every configuration, and a workflow rerun
 uses the saved cache. Ordinary PR and weekly runs use any compatible cache
 immediately.
+For labelled benchmark PRs, the optional repository variable `TVM_BENCHMARK_REF`
+pins a TVM commit across workflow edits. Setting `CACHE_BENCHMARK_COLD=false`
+allows the first attempt of a new workflow run to use the existing snapshot.
+These controls do not change weekly source selection. TVM's global version
+define changes with new revisions and can invalidate otherwise reusable
+compiler objects; same-SHA measurements do not establish weekly-update gains.
 
 ## Todos
 

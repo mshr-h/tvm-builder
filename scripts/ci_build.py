@@ -87,6 +87,8 @@ def configure():
     # Also normalize the Python-version-dependent site-packages prefix containing
     # Z3 headers. Compiler inputs and Python headers still determine object keys.
     append_env("SCCACHE_BASEDIRS", os.pathsep.join((str(Path.cwd()), sysconfig.get_paths()["purelib"])))
+    # Visual Studio generators ignore COMPILER_LAUNCHER. Use Ninja for FFI too.
+    append_env("CMAKE_GENERATOR", "Ninja")
     for language in ("C", "CXX", "CUDA", "OBJCXX"):
         append_env(f"CMAKE_{language}_COMPILER_LAUNCHER", "sccache")
     write_report({
@@ -147,6 +149,8 @@ def build():
         # Preserve FFI's upstream cmake.args defaults.
         for key, value in common.items():
             command += ["--config-settings", f"cmake.define.{key}={value}"]
+        if os.name == "nt" and name == "ffi":
+            command += ["--config-settings", "cmake.define.CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"]
         result = subprocess.run(command)
         seconds = time.perf_counter() - started
         stats = json.loads(output(["sccache", "--show-stats", "--stats-format=json"]))

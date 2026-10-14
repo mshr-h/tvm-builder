@@ -32,6 +32,8 @@ jobs:
           path: source-metadata
       - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         id: tvm
+        env:
+          TVM_BENCHMARK_REF: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'cache-benchmark') && vars.TVM_BENCHMARK_REF || '' }}
         with:
           script: |
             const fs = require('fs');
@@ -39,6 +41,13 @@ jobs:
             let hash;
             if (fs.existsSync(file)) {
               hash = JSON.parse(fs.readFileSync(file, 'utf8')).hash;
+            } else if (process.env.TVM_BENCHMARK_REF) {
+              const { data } = await github.rest.repos.getCommit({
+                owner: 'apache', repo: 'tvm', ref: process.env.TVM_BENCHMARK_REF,
+              });
+              hash = data.sha;
+              fs.mkdirSync('source-metadata', { recursive: true });
+              fs.writeFileSync(file, JSON.stringify({ hash }));
             } else {
               const { data } = await github.rest.git.getRef({
                 owner: 'apache', repo: 'tvm', ref: 'heads/main',
@@ -75,7 +84,7 @@ jobs:
       SCCACHE_IGNORE_SERVER_IO_ERROR: '1'
       # A labelled PR can collect a genuinely cold first attempt even when
       # queued Python jobs start after the OS's writer has saved its snapshot.
-      SCCACHE_RECACHE: ${{ github.run_attempt == '1' && contains(github.event.pull_request.labels.*.name, 'cache-benchmark') && '1' || '0' }}
+      SCCACHE_RECACHE: ${{ github.run_attempt == '1' && contains(github.event.pull_request.labels.*.name, 'cache-benchmark') && vars.CACHE_BENCHMARK_COLD != 'false' && '1' || '0' }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
