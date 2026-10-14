@@ -101,6 +101,7 @@ def configure():
         "toolchain": toolchain,
         "build_dependencies": {dist.metadata["Name"]: dist.version for dist in importlib.metadata.distributions()},
         "cache_key": key,
+        "force_recache": os.environ.get("SCCACHE_RECACHE") == "1",
         "phases": [],
     })
 

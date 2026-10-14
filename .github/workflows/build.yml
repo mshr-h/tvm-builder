@@ -73,6 +73,9 @@ jobs:
       SCCACHE_CACHE_SIZE: '3G'
       SCCACHE_IDLE_TIMEOUT: '0'
       SCCACHE_IGNORE_SERVER_IO_ERROR: '1'
+      # A labelled PR can collect a genuinely cold first attempt even when
+      # queued Python jobs start after the OS's writer has saved its snapshot.
+      SCCACHE_RECACHE: ${{ github.run_attempt == '1' && contains(github.event.pull_request.labels.*.name, 'cache-benchmark') && '1' || '0' }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:

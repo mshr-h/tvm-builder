@@ -42,6 +42,10 @@ Every attempt removes the CMake build trees and validates the resulting wheels
 in a fresh test environment. Rerunning a workflow preserves its original TVM
 SHA in the `tvm-source` artifact, making cold/warm comparisons reproducible.
 Each new weekly run still resolves the latest TVM `main`.
+For a controlled benchmark, label a PR `cache-benchmark` before pushing:
+attempt 1 forces recompilation in every configuration, and a workflow rerun
+uses the saved cache. Ordinary PR and weekly runs use any compatible cache
+immediately.
 
 ## Todos
 
