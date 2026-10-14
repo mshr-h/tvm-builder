@@ -25,8 +25,10 @@ weekly schedule. The manual Windows workflow validates Python 3.11–3.15 and
 uploads a separate artifact for each Python version.
 
 Both workflows use sccache v0.18.0 for TVM and FFI compilation, including CUDA
-and Metal compiler launchers. A local cache of up to 3 GiB per OS is restored
-with `actions/cache`. Keys separate OS, architecture, and compiler/SDK versions;
+and Metal compiler launchers. Windows uses embedded MSVC debug information
+(`/Z7`) to avoid shared PDB files; a CMake hook replaces FFI's explicit `/Zi`
+target flag. A local cache of up to 3 GiB per OS is restored with `actions/cache`.
+Keys separate OS, architecture, and compiler/SDK versions;
 Python versions share compiler objects when their inputs match. Python 3.11
 is the sole cache writer on each OS and saves after compilation, before tests.
 New TVM revisions can restore the previous compatible snapshot; sccache checks

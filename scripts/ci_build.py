@@ -124,6 +124,7 @@ def build():
     common = {f"CMAKE_{language}_COMPILER_LAUNCHER": "sccache" for language in ("C", "CXX", "CUDA", "OBJCXX")}
     if os.name == "nt":
         common.update(CMAKE_POLICY_DEFAULT_CMP0141="NEW", CMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded")
+        common["CMAKE_PROJECT_TOP_LEVEL_INCLUDES"] = (Path(__file__).resolve().parent / "sccache-msvc.cmake").as_posix()
     for name, project, args in (
         ("tvm", Path("."), cmake_args),
         ("ffi", Path("3rdparty/tvm-ffi"), ""),
