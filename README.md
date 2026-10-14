@@ -40,7 +40,9 @@ versions. Build requirements are installed from both upstream `pyproject.toml`
 files into the job's dedicated environment to avoid random isolated-build paths.
 Every attempt removes the CMake build trees and validates the resulting wheels
 in a fresh test environment. Rerunning a workflow preserves its original TVM
-SHA in the `tvm-source` artifact, making cold/warm comparisons reproducible.
+SHA in a run-scoped cache and records it in the `tvm-source` artifact, making
+cold/warm comparisons reproducible. If that cache has been evicted, reruns
+require an explicit benchmark ref or a new run instead of changing source.
 Each new weekly run still resolves the latest TVM `main`.
 For a controlled benchmark, label a PR `cache-benchmark` before pushing:
 attempt 1 forces recompilation in every configuration, and a workflow rerun
