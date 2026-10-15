@@ -1,0 +1,20 @@
+# FFI explicitly adds /Zi to targets, overriding CMake's Embedded setting.
+# Replace that flag after all targets exist; leave upstream source files intact.
+function(sccache_embed_msvc_debug_info directory)
+  get_property(targets DIRECTORY "${directory}" PROPERTY BUILDSYSTEM_TARGETS)
+  foreach(target IN LISTS targets)
+    foreach(property COMPILE_OPTIONS INTERFACE_COMPILE_OPTIONS)
+      get_target_property(options "${target}" "${property}")
+      if(options)
+        list(TRANSFORM options REPLACE "^[-/]Zi$" "/Z7")
+        set_property(TARGET "${target}" PROPERTY "${property}" "${options}")
+      endif()
+    endforeach()
+  endforeach()
+  get_property(children DIRECTORY "${directory}" PROPERTY SUBDIRECTORIES)
+  foreach(child IN LISTS children)
+    sccache_embed_msvc_debug_info("${child}")
+  endforeach()
+endfunction()
+
+cmake_language(DEFER CALL sccache_embed_msvc_debug_info "${CMAKE_SOURCE_DIR}")
