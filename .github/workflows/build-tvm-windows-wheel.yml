@@ -2,6 +2,20 @@ name: build-tvm-windows-wheel
 
 on:
   workflow_dispatch:
+    inputs:
+      tvm-ref:
+        description: 'TVM commit or ref (empty selects latest main)'
+        type: string
+        default: ''
+      python-version:
+        description: 'Python version to validate'
+        type: choice
+        options: ['all', '3.11', '3.12', '3.13', '3.14', '3.15']
+        default: 'all'
+      diagnose-load:
+        description: 'Capture a native debugger trace after an import failure'
+        type: boolean
+        default: false
 
 env:
   LLVM_VERSION: "21.1.8"
@@ -22,6 +36,8 @@ jobs:
           key: tvm-source-v1-${{ github.run_id }}
       - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         id: tvm
+        env:
+          TVM_REF: ${{ inputs.tvm-ref }}
         with:
           script: |
             const fs = require('fs');
@@ -29,6 +45,13 @@ jobs:
             let hash;
             if (fs.existsSync(file)) {
               hash = JSON.parse(fs.readFileSync(file, 'utf8')).hash;
+            } else if (process.env.TVM_REF) {
+              const { data } = await github.rest.repos.getCommit({
+                owner: 'apache', repo: 'tvm', ref: process.env.TVM_REF,
+              });
+              hash = data.sha;
+              fs.mkdirSync('source-metadata', { recursive: true });
+              fs.writeFileSync(file, JSON.stringify({ hash }));
             } else {
               if (Number(process.env.GITHUB_RUN_ATTEMPT) > 1) {
                 throw new Error('Original TVM SHA cache is unavailable; start a new run.');
@@ -64,7 +87,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest]
-        python-version: ['3.11', '3.12', '3.13', '3.14', '3.15']
+        python-version: ${{ fromJSON(inputs.python-version == 'all' && '["3.11", "3.12", "3.13", "3.14", "3.15"]' || format('["{0}"]', inputs.python-version)) }}
     runs-on: ${{ matrix.os }}
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
@@ -230,6 +253,9 @@ jobs:
           $env:CMAKE_BUILD_PARALLEL_LEVEL = '4'
           # LLVM/libxml2 use /MT; the prebuilt static Z3 wheel uses /MD.
           $cmakeArgs = "-GNinja;-DUSE_LLVM=ON;-DLLVM_DIR=$env:LLVM_DIR;-DUSE_MLIR=OFF;-DUSE_Z3=OFF;-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"
+          if ('${{ inputs.diagnose-load }}' -eq 'true') {
+            $cmakeArgs += ';-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG'
+          }
           $env:TVM_CMAKE_ARGS = $cmakeArgs
           python .ci/scripts/ci_build.py build
 
@@ -262,6 +288,12 @@ jobs:
           "$test_python" -X faulthandler -u -c "import tvm_ffi; print(tvm_ffi.__file__, flush=True)"
           "$test_python" -X faulthandler -u -c "import tvm, tvm_ffi; print(tvm.__file__); print(tvm_ffi.__file__); print(tvm.__version__); tvm.support.describe(); assert tvm.runtime.enabled('llvm'), 'LLVM support is required'"
           "$test_python" -m pytest -v "../tests/python/all-platform-minimal-test"
+
+      - name: Diagnose Windows library loading
+        if: failure() && inputs.diagnose-load
+        continue-on-error: true
+        shell: pwsh
+        run: .ci/scripts/windows-load-diagnostics.ps1
 
       - name: Summarize build measurements
         if: always()
