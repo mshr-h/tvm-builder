@@ -36,6 +36,8 @@ and TIRx wheels before building their consumers; the clean test environment
 installs all three wheels together. Older commits with the combined TVM layout
 remain supported. All generated wheels are collected in `wheelhouse/` for
 validation and artifact/release upload.
+Linux explicitly links with lld because the official LLVM static archives
+contain bitcode and the standalone TIRx build does not select lld automatically.
 
 Both workflows use sccache v0.18.0 for TVM, TIRx, and FFI compilation, including CUDA
 and Metal compiler launchers. Windows uses embedded MSVC debug information

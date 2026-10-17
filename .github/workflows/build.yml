@@ -330,6 +330,9 @@ jobs:
           cmake_args="-GNinja;-DCMAKE_BUILD_TYPE=RelWithDebInfo;-DUSE_MLIR=OFF"
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             cmake_args+=";-DUSE_LLVM=${LLVM_ROOT}/bin/llvm-config --link-static;-DUSE_CUDA=ON;-DUSE_TENSORRT_CODEGEN=ON"
+            # The official LLVM static archives contain bitcode; TIRx no longer
+            # inherits the parent TVM project's automatic lld selection.
+            cmake_args+=";-DCMAKE_SHARED_LINKER_FLAGS=-fuse-ld=lld"
           else
             cmake_args+=";-DUSE_LLVM=$(brew --prefix llvm)/bin/llvm-config --link-static;-DUSE_METAL=ON"
           fi
