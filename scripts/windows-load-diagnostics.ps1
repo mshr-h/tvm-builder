@@ -17,6 +17,10 @@ import tvm_ffi
 print('FFI imported', flush=True)
 import tvm
 print('TVM imported', flush=True)
+os.environ['TVM_TEST_TARGETS'] = 'llvm'
+os.environ['TVM_WHEEL_EXPECT_LLVM'] = '1'
+import pytest
+raise SystemExit(pytest.main(['-v', os.path.join(os.environ['GITHUB_WORKSPACE'], 'tests/python/all-platform-minimal-test')]))
 '@ | Set-Content -Path $probe -Encoding utf8
 $onFault = 'kpn; !avrf; !analyze -v; .ecxr; kpn; lm; q'
 $commands = "sxd ibp; sxe -c `"$onFault`" bpe; sxe -c `"$onFault`" av; sxe -c `"$onFault`" 0xc0000374; g"
