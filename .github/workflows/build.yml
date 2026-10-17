@@ -257,6 +257,11 @@ jobs:
           sudo ldconfig
           rm -rf zstd
 
+      - name: Fix Windows FFI List buffer ownership
+        if: runner.os == 'Windows'
+        shell: bash
+        run: python .ci/scripts/patch_windows_ffi.py
+
       - name: Prepare stable build dependencies
         shell: bash
         run: python .ci/scripts/ci_build.py prepare
