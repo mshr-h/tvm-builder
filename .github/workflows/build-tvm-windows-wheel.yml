@@ -202,7 +202,11 @@ jobs:
           cmake --build libxml2-build --config Release --target install --parallel
           Copy-Item libxml2-install/lib/libxml2s.lib "$env:LLVM_ROOT/lib/libxml2s.lib"
 
-      - name: Fix Windows DLL buffer ownership
+      - name: Use CRT allocator for LLVM DLL consumers
+        shell: pwsh
+        run: .ci/scripts/configure_windows_llvm_allocator.ps1
+
+      - name: Fix Windows FFI buffer ownership
         shell: bash
         run: python .ci/scripts/patch_windows_ffi.py
 

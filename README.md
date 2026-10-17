@@ -23,13 +23,16 @@ replace the deleter along with the buffer so allocation and deallocation stay
 in the same DLL. Retaining the previous DLL's deleter caused heap corruption
 during TVM compiler initialization. A C++ regression checks the installed FFI
 headers after the clean wheel import and minimal tests.
-The split TIRx build also binds `ObjectFunctor`'s vector allocator to the DLL
-that owns the table. This prevents a second DLL from freeing a buffer created
-while initializing inherited visitor dispatch. A C++ regression extends and
-finalizes a core-initialized table from a separate executable.
-The core also exports `ConstraintContext`'s destructor so its recovery vector
-is freed in the DLL that allocated it. A regression repeatedly enters and exits
-constraint scopes from a separate executable and checks constraint recovery.
+LLVM's Windows static `LLVMSupport.lib` embeds rpmalloc, overriding the CRT
+allocator in the DLL that links it. The split TIRx core and the parent compiler
+pass STL containers between DLLs; freeing a CRT allocation through rpmalloc
+causes heap corruption or access violations. Windows removes only the rpmalloc
+object from the job's LLVM archive, preserving all other members and checking
+that allocator override symbols are absent. `llvm-allocator.json` records the
+removed member and original/modified archive hashes. The static CRT remains
+enabled. C++ regressions exercise inherited dispatch-table growth/finalization
+and constraint-scope recovery from a separate executable, using the upstream
+TIRx headers.
 
 Pull requests validate all 15 configurations, including installing all local
 wheels with their dependencies, checking LLVM and the OS's required CUDA/Metal support, running TVM's minimal

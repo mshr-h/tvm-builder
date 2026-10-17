@@ -257,7 +257,12 @@ jobs:
           sudo ldconfig
           rm -rf zstd
 
-      - name: Fix Windows DLL buffer ownership
+      - name: Use CRT allocator for LLVM DLL consumers
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .ci/scripts/configure_windows_llvm_allocator.ps1
+
+      - name: Fix Windows FFI buffer ownership
         if: runner.os == 'Windows'
         shell: bash
         run: python .ci/scripts/patch_windows_ffi.py
