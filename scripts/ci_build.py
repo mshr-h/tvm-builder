@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import sysconfig
@@ -16,6 +17,16 @@ import tomllib
 
 METRICS = Path("build-metrics")
 REPORT = METRICS / "metrics.json"
+
+
+def projects():
+    if Path("tirx/pyproject.toml").exists():
+        return [("ffi", Path("tirx/3rdparty/tvm-ffi")), ("tirx", Path("tirx")), ("tvm", Path("."))]
+    return [("tvm", Path(".")), ("ffi", Path("3rdparty/tvm-ffi"))]
+
+
+def project_config(project):
+    return tomllib.loads((project / "pyproject.toml").read_text(encoding="utf-8"))
 
 
 def output(command):
@@ -40,9 +51,12 @@ def prepare():
     # uv's isolated build environments have random paths. Install both projects'
     # declared requirements in the job's dedicated .venv before disabling isolation.
     requirements = set()
-    for project in (Path("."), Path("3rdparty/tvm-ffi")):
-        config = tomllib.loads((project / "pyproject.toml").read_text(encoding="utf-8"))
+    configs = [project_config(project) for _, project in projects()]
+    local_names = {config["project"]["name"].lower().replace("_", "-") for config in configs}
+    for config in configs:
         requirements.update(config["build-system"]["requires"])
+    # The parent now builds against the source-built apache-tvm-tirx wheel.
+    requirements = {item for item in requirements if re.split(r"[<>=!~\[; ]", item, 1)[0].lower().replace("_", "-") not in local_names}
     subprocess.run(["uv", "pip", "install", *sorted(requirements)], check=True)
 
 
@@ -96,7 +110,7 @@ def configure():
         "python": platform.python_version(),
         "cpus": os.cpu_count(),
         "source": source,
-        "ffi_source": output(["git", "-C", "3rdparty/tvm-ffi", "rev-parse", "HEAD"]),
+        "ffi_source": output(["git", "-C", str(dict(projects())["ffi"]), "rev-parse", "HEAD"]),
         "workflow_sha": os.environ["GITHUB_SHA"],
         "run_id": os.environ["GITHUB_RUN_ID"],
         "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
@@ -131,10 +145,19 @@ def build():
     if os.name == "nt":
         common.update(CMAKE_POLICY_DEFAULT_CMP0141="NEW", CMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded")
         common["CMAKE_PROJECT_TOP_LEVEL_INCLUDES"] = (Path(__file__).resolve().parent / "sccache-msvc.cmake").as_posix()
-    for name, project, args in (
-        ("tvm", Path("."), cmake_args),
-        ("ffi", Path("3rdparty/tvm-ffi"), ""),
-    ):
+    package_projects = projects()
+    split_core = any(name == "tirx" for name, _ in package_projects)
+    wheelhouse = Path("wheelhouse")
+    shutil.rmtree(wheelhouse, ignore_errors=True)
+    wheelhouse.mkdir()
+    for name, project in package_projects:
+        args = cmake_args if name != "ffi" else ""
+        if split_core:
+            # Native core options acquired their own namespace during the split.
+            for option in ("LLVM", "CUDA", "METAL", "Z3"):
+                args = args.replace(f"-DUSE_{option}=", f"-DTVM_TIRX_USE_{option}=")
+            if name == "tirx":
+                args = ";".join(arg for arg in args.split(";") if not arg.startswith(("-DUSE_MLIR=", "-DUSE_TENSORRT_CODEGEN=")))
         # A rerun must compile from scratch, rather than hit Ninja's build tree.
         shutil.rmtree(project / "build", ignore_errors=True)
         subprocess.run(["sccache", "--zero-stats"], check=True)
@@ -164,6 +187,13 @@ def build():
         print(f"{name}: {seconds:.1f} seconds, exit {result.returncode}", flush=True)
         if result.returncode:
             raise subprocess.CalledProcessError(result.returncode, "uv build")
+        wheel_name = project_config(project)["project"]["name"].replace("-", "_")
+        wheels = list((project / "dist").glob(f"{wheel_name}-*.whl"))
+        if len(wheels) != 1:
+            raise RuntimeError(f"Expected one {name} wheel, found {wheels}")
+        shutil.copy2(wheels[0], wheelhouse / wheels[0].name)
+        if split_core and name != "tvm":
+            subprocess.run(["uv", "pip", "install", str(wheels[0])], check=True)
     subprocess.run(["sccache", "--stop-server"], check=True)
 
 

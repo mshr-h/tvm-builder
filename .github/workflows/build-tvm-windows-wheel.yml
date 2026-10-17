@@ -275,7 +275,7 @@ jobs:
           PYTHONNOUSERSITE: "1"
         run: |
           mkdir -p tmp
-          cp 3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl dist/apache_tvm-*.whl tmp
+          cp wheelhouse/*.whl tmp
           cd tmp
           uv venv .test-venv --python "$PYTHON_VERSION"
           if [[ "$RUNNER_OS" == "Windows" ]]; then
@@ -283,11 +283,14 @@ jobs:
           else
             test_python=".test-venv/bin/python"
           fi
-          uv pip install --python "$test_python" pytest apache_tvm_ffi-*.whl apache_tvm-*.whl
+          uv pip install --python "$test_python" pytest ./*.whl
           uv pip check --python "$test_python"
           "$test_python" -X faulthandler -u -c "import tvm_ffi; print(tvm_ffi.__file__, flush=True)"
           "$test_python" -X faulthandler -u -c "import tvm, tvm_ffi; print(tvm.__file__); print(tvm_ffi.__file__); print(tvm.__version__); tvm.support.describe(); assert tvm.runtime.enabled('llvm'), 'LLVM support is required'"
           "$test_python" -m pytest -v "../tests/python/all-platform-minimal-test"
+          if [[ -d ../tirx/tests/python/all-platform-minimal-test ]]; then
+            "$test_python" -m pytest -v "../tirx/tests/python/all-platform-minimal-test"
+          fi
 
       - name: Diagnose Windows library loading
         if: failure() && inputs.diagnose-load
@@ -314,6 +317,4 @@ jobs:
           retention-days: 14
           if-no-files-found: error
           overwrite: true
-          path: |
-            dist/apache_tvm-*.whl
-            3rdparty/tvm-ffi/dist/apache_tvm_ffi-*.whl
+          path: wheelhouse/*.whl
