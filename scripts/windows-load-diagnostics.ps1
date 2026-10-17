@@ -4,20 +4,27 @@ $cdb = Join-Path $debuggers 'cdb.exe'
 $gflags = Join-Path $debuggers 'gflags.exe'
 if (-not (Test-Path $cdb)) { throw 'The Windows SDK x64 debugger is required' }
 $python = (Resolve-Path 'tmp/.test-venv/Scripts/python.exe').Path
+$basePython = & $python -c 'import sys; print(sys._base_executable)'
+$env:TVM_DIAGNOSTIC_SITE_PACKAGES = (Resolve-Path 'tmp/.test-venv/Lib/site-packages').Path
 $log = Join-Path $env:GITHUB_WORKSPACE 'build-metrics/windows-load.log'
 $symbolPath = "$env:GITHUB_WORKSPACE/build/lib;$env:GITHUB_WORKSPACE/3rdparty/tvm-ffi/build/lib;$env:GITHUB_WORKSPACE/tirx/build/lib;$env:GITHUB_WORKSPACE/tirx/3rdparty/tvm-ffi/build/lib;srv*$env:RUNNER_TEMP/symbols*https://msdl.microsoft.com/download/symbols"
 $probe = Join-Path $env:RUNNER_TEMP 'tvm-load-probe.py'
 @'
+import os
+import sys
+sys.path.insert(0, os.environ['TVM_DIAGNOSTIC_SITE_PACKAGES'])
 import tvm_ffi
 print('FFI imported', flush=True)
 import tvm
 print('TVM imported', flush=True)
 '@ | Set-Content -Path $probe -Encoding utf8
-$commands = 'sxe -c "!analyze -v; .ecxr; kpn; lm; q" av; sxe -c "!analyze -v; .ecxr; kpn; lm; q" 0xc0000374; g'
+$onFault = 'kpn; !avrf; !analyze -v; .ecxr; kpn; lm; q'
+$commands = "sxd ibp; sxe -c `"$onFault`" bpe; sxe -c `"$onFault`" av; sxe -c `"$onFault`" 0xc0000374; g"
 & $gflags /p /enable python.exe /full
 try {
-    # Windows virtualenv Python launches the actual interpreter as a child.
-    & $cdb -o -g -G -logo $log -y $symbolPath -c $commands $python $probe
+    # Debug the interpreter directly, with only the test venv's installed wheels.
+    # -g would postpone initial commands until the verifier stop itself.
+    & $cdb -G -logo $log -y $symbolPath -c $commands $basePython -S $probe
 } finally {
     & $gflags /p /disable python.exe
 }
