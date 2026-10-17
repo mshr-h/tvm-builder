@@ -307,6 +307,10 @@ jobs:
             "$test_python" -m pytest -v "../tirx/tests/python/all-platform-minimal-test"
           fi
 
+      - name: Verify Windows FFI buffer ownership
+        shell: pwsh
+        run: .ci/scripts/check_windows_ffi.ps1
+
       - name: Diagnose Windows library loading
         if: failure() && inputs.diagnose-load
         continue-on-error: true

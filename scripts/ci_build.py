@@ -48,7 +48,7 @@ def append_env(name, value):
 
 
 def prepare():
-    # uv's isolated build environments have random paths. Install both projects'
+    # uv's isolated build environments have random paths. Install the projects'
     # declared requirements in the job's dedicated .venv before disabling isolation.
     requirements = set()
     configs = [project_config(project) for _, project in projects()]

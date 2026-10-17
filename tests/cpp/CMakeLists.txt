@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.26)
+project(ffi_buffer_ownership LANGUAGES CXX)
+find_package(tvm_ffi CONFIG REQUIRED)
+add_executable(ffi_list_buffer_ownership ffi_list_buffer_ownership.cc)
+target_compile_features(ffi_list_buffer_ownership PRIVATE cxx_std_20)
+target_link_libraries(ffi_list_buffer_ownership PRIVATE tvm_ffi::shared)
