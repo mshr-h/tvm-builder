@@ -158,6 +158,8 @@ def build():
                 args = args.replace(f"-DUSE_{option}=", f"-DTVM_TIRX_USE_{option}=")
             if name == "tirx":
                 args = ";".join(arg for arg in args.split(";") if not arg.startswith(("-DUSE_MLIR=", "-DUSE_TENSORRT_CODEGEN=")))
+            elif name == "tvm":
+                args = args.replace("-DUSE_TENSORRT_CODEGEN=", "-DTVM_USE_TENSORRT_CODEGEN=")
         # A rerun must compile from scratch, rather than hit Ninja's build tree.
         shutil.rmtree(project / "build", ignore_errors=True)
         subprocess.run(["sccache", "--zero-stats"], check=True)
