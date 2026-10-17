@@ -202,7 +202,7 @@ jobs:
           cmake --build libxml2-build --config Release --target install --parallel
           Copy-Item libxml2-install/lib/libxml2s.lib "$env:LLVM_ROOT/lib/libxml2s.lib"
 
-      - name: Fix Windows FFI List buffer ownership
+      - name: Fix Windows DLL buffer ownership
         shell: bash
         run: python .ci/scripts/patch_windows_ffi.py
 

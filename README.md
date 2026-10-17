@@ -23,6 +23,10 @@ replace the deleter along with the buffer so allocation and deallocation stay
 in the same DLL. Retaining the previous DLL's deleter caused heap corruption
 during TVM compiler initialization. A C++ regression checks the installed FFI
 headers after the clean wheel import and minimal tests.
+The split TIRx build also binds `ObjectFunctor`'s vector allocator to the DLL
+that owns the table. This prevents a second DLL from freeing a buffer created
+while initializing inherited visitor dispatch. A C++ regression extends and
+finalizes a core-initialized table from a separate executable.
 
 Pull requests validate all 15 configurations, including installing all local
 wheels with their dependencies, checking LLVM and the OS's required CUDA/Metal support, running TVM's minimal

@@ -257,7 +257,7 @@ jobs:
           sudo ldconfig
           rm -rf zstd
 
-      - name: Fix Windows FFI List buffer ownership
+      - name: Fix Windows DLL buffer ownership
         if: runner.os == 'Windows'
         shell: bash
         run: python .ci/scripts/patch_windows_ffi.py
