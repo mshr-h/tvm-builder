@@ -82,10 +82,11 @@ compiler objects; same-SHA measurements do not establish weekly-update gains.
 
 The manual Windows workflow can select a TVM commit/ref and one Python version,
 with all versions and latest TVM `main` as the defaults. Its optional native
-load diagnostics enable page heap and capture the Windows SDK debugger's stack
-after an import failure; the failed wheel test keeps the workflow unsuccessful.
-The `native-diagnostics` PR label enables the same diagnostics for the Windows
-Python 3.11 job, including the minimal LLVM test, while retaining the PR cache scope.
+diagnostics enable page heap and capture the Windows SDK debugger's stack
+while rerunning the minimal LLVM test, even when ordinary validation passed.
+Detected heap corruption or access violations also fail validation.
+The `native-diagnostics` PR label enables these diagnostics for all Windows
+jobs while retaining the PR cache scope.
 
 ## Todos
 

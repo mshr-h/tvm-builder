@@ -320,7 +320,7 @@ jobs:
           $env:CMAKE_BUILD_PARALLEL_LEVEL = '4'
           # LLVM/libxml2 use /MT; the prebuilt static Z3 wheel uses /MD.
           $cmakeArgs = "-GNinja;-DUSE_LLVM=ON;-DLLVM_DIR=$env:LLVM_DIR;-DUSE_MLIR=OFF;-DUSE_Z3=OFF;-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"
-          if ($env:PYTHON_VERSION -eq '3.11' -and '${{ contains(github.event.pull_request.labels.*.name, 'native-diagnostics') }}' -eq 'true') {
+          if ('${{ contains(github.event.pull_request.labels.*.name, 'native-diagnostics') }}' -eq 'true') {
             $cmakeArgs += ';-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG'
           }
           $env:TVM_CMAKE_ARGS = $cmakeArgs
@@ -351,6 +351,7 @@ jobs:
           key: ${{ steps.cache_windows.outputs.key || steps.cache_unix.outputs.key }}
 
       - name: Test TVM
+        id: test_wheels
         shell: bash
         env:
           TVM_TEST_TARGETS: "llvm"
@@ -396,8 +397,7 @@ jobs:
         run: .ci/scripts/check_windows_ffi.ps1
 
       - name: Diagnose Windows native test failure
-        if: failure() && runner.os == 'Windows' && matrix.python-version == '3.11' && contains(github.event.pull_request.labels.*.name, 'native-diagnostics')
-        continue-on-error: true
+        if: ${{ !cancelled() && runner.os == 'Windows' && contains(github.event.pull_request.labels.*.name, 'native-diagnostics') && (steps.test_wheels.outcome == 'success' || steps.test_wheels.outcome == 'failure') }}
         timeout-minutes: 5
         shell: pwsh
         run: .ci/scripts/windows-load-diagnostics.ps1

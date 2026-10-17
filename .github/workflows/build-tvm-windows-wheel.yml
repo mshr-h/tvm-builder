@@ -272,6 +272,7 @@ jobs:
           key: ${{ steps.cache_windows.outputs.key }}
 
       - name: Test TVM
+        id: test_wheels
         shell: bash
         env:
           TVM_TEST_TARGETS: "llvm"
@@ -312,8 +313,7 @@ jobs:
         run: .ci/scripts/check_windows_ffi.ps1
 
       - name: Diagnose Windows library loading
-        if: failure() && inputs.diagnose-load
-        continue-on-error: true
+        if: ${{ !cancelled() && inputs.diagnose-load && (steps.test_wheels.outcome == 'success' || steps.test_wheels.outcome == 'failure') }}
         timeout-minutes: 5
         shell: pwsh
         run: .ci/scripts/windows-load-diagnostics.ps1

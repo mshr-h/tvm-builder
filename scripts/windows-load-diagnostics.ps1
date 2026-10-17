@@ -33,3 +33,6 @@ try {
     & $gflags /p /disable python.exe
 }
 if (Test-Path $log) { Get-Content $log }
+if (Select-String -Path $log -Pattern 'VERIFIER STOP|Access violation - code c0000005|Heap corruption - code c0000374' -Quiet) {
+    throw 'Native wheel validation detected heap corruption or an access violation; inspect windows-load.log'
+}
