@@ -77,6 +77,8 @@ The manual Windows workflow can select a TVM commit/ref and one Python version,
 with all versions and latest TVM `main` as the defaults. Its optional native
 load diagnostics enable page heap and capture the Windows SDK debugger's stack
 after an import failure; the failed wheel test keeps the workflow unsuccessful.
+The `native-diagnostics` PR label enables the same diagnostics for the Windows
+Python 3.11 job, including the minimal LLVM test, while retaining the PR cache scope.
 
 ## Todos
 
