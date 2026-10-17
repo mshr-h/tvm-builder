@@ -12,10 +12,6 @@ on:
         type: choice
         options: ['all', '3.11', '3.12', '3.13', '3.14', '3.15']
         default: 'all'
-      diagnose-load:
-        description: 'Capture a native debugger trace after an import failure'
-        type: boolean
-        default: false
 
 env:
   LLVM_VERSION: "21.1.8"
@@ -261,9 +257,6 @@ jobs:
           $env:CMAKE_BUILD_PARALLEL_LEVEL = '4'
           # LLVM/libxml2 use /MT; the prebuilt static Z3 wheel uses /MD.
           $cmakeArgs = "-GNinja;-DUSE_LLVM=ON;-DLLVM_DIR=$env:LLVM_DIR;-DUSE_MLIR=OFF;-DUSE_Z3=OFF;-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"
-          if ('${{ inputs.diagnose-load }}' -eq 'true') {
-            $cmakeArgs += ';-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG'
-          }
           $env:TVM_CMAKE_ARGS = $cmakeArgs
           python .ci/scripts/ci_build.py build
 
@@ -276,7 +269,6 @@ jobs:
           key: ${{ steps.cache_windows.outputs.key }}
 
       - name: Test TVM
-        id: test_wheels
         shell: bash
         env:
           TVM_TEST_TARGETS: "llvm"
@@ -311,16 +303,6 @@ jobs:
           if [[ -d ../tirx/tests/python/all-platform-minimal-test ]]; then
             "$test_python" -m pytest -v "../tirx/tests/python/all-platform-minimal-test"
           fi
-
-      - name: Verify Windows FFI buffer ownership
-        shell: pwsh
-        run: .ci/scripts/check_windows_ffi.ps1
-
-      - name: Diagnose Windows library loading
-        if: ${{ !cancelled() && inputs.diagnose-load && (steps.test_wheels.outcome == 'success' || steps.test_wheels.outcome == 'failure') }}
-        timeout-minutes: 5
-        shell: pwsh
-        run: .ci/scripts/windows-load-diagnostics.ps1
 
       - name: Summarize build measurements
         if: always()

@@ -21,8 +21,8 @@ runtime. Windows wheel builds use MSVC with Ninja and four parallel build jobs.
 Windows applies a guarded FFI List buffer ownership fix: reallocation must
 replace the deleter along with the buffer so allocation and deallocation stay
 in the same DLL. Retaining the previous DLL's deleter caused heap corruption
-during TVM compiler initialization. A C++ regression checks the installed FFI
-headers after the clean wheel import and minimal tests.
+during TVM compiler initialization.
+
 LLVM's Windows static `LLVMSupport.lib` embeds rpmalloc, overriding the CRT
 allocator in the DLL that links it. The split TIRx core and the parent compiler
 pass STL containers between DLLs; freeing a CRT allocation through rpmalloc
@@ -30,14 +30,13 @@ causes heap corruption or access violations. Windows removes only the rpmalloc
 object from the job's LLVM archive, preserving all other members and checking
 that allocator override symbols are absent. `llvm-allocator.json` records the
 removed member and original/modified archive hashes. The static CRT remains
-enabled. C++ regressions exercise inherited dispatch-table growth/finalization
-and constraint-scope recovery from a separate executable, using the upstream
-TIRx headers.
+enabled.
 
-Pull requests validate all 15 configurations, including installing all local
-wheels with their dependencies, checking LLVM and the OS's required CUDA/Metal support, running TVM's minimal
-tests, and uploading the wheels. Releases run only on pushes to `main` and the
-weekly schedule. The manual Windows workflow validates Python 3.11–3.15 and
+Pull requests build wheels for all 15 configurations. Validation is limited to
+installing all local wheels with their dependencies, checking imports and LLVM
+and the OS's required CUDA/Metal support, and running TVM's minimal tests.
+The resulting wheels are uploaded as artifacts. Releases run only on pushes to
+`main` and the weekly schedule. The manual Windows workflow validates Python 3.11–3.15 and
 uploads a separate artifact for each Python version.
 
 TVM's split package layout builds FFI, TIRx, and TVM from the same source
@@ -84,12 +83,8 @@ define changes with new revisions and can invalidate otherwise reusable
 compiler objects; same-SHA measurements do not establish weekly-update gains.
 
 The manual Windows workflow can select a TVM commit/ref and one Python version,
-with all versions and latest TVM `main` as the defaults. Its optional native
-diagnostics enable page heap and capture the Windows SDK debugger's stack
-while rerunning the minimal LLVM test, even when ordinary validation passed.
-Detected heap corruption or access violations also fail validation.
-The `native-diagnostics` PR label enables these diagnostics for all Windows
-jobs while retaining the PR cache scope.
+with all versions and latest TVM `main` as the defaults. It uses the same minimal
+wheel validation as the weekly workflow.
 
 ## Todos
 
