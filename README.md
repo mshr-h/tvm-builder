@@ -25,7 +25,7 @@ during TVM compiler initialization. A C++ regression checks the installed FFI
 headers after the clean wheel import and minimal tests.
 
 Pull requests validate all 15 configurations, including installing all local
-wheels with their dependencies, checking LLVM support, running TVM's minimal
+wheels with their dependencies, checking LLVM and the OS's required CUDA/Metal support, running TVM's minimal
 tests, and uploading the wheels. Releases run only on pushes to `main` and the
 weekly schedule. The manual Windows workflow validates Python 3.11–3.15 and
 uploads a separate artifact for each Python version.

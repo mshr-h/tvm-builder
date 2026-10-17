@@ -368,6 +368,7 @@ jobs:
           "$test_python" -X faulthandler -u -c "import tvm_ffi; print(tvm_ffi.__file__, flush=True)"
           "$test_python" -X faulthandler -u - <<'PY'
           import importlib
+          import os
           import tvm
           import tvm_ffi
           core = importlib.import_module('tvm_tirx') if importlib.util.find_spec('tvm_tirx') else tvm
@@ -376,7 +377,10 @@ jobs:
           print(core.__file__)
           print(tvm.__version__)
           core.support.describe()
-          assert core.runtime.enabled('llvm'), 'LLVM support is required'
+          required = ['llvm'] + {'Linux': ['cuda'], 'macOS': ['metal']}.get(os.environ['RUNNER_OS'], [])
+          enabled = {target: bool(core.runtime.enabled(target)) for target in required}
+          print('Required runtimes:', enabled)
+          assert all(enabled.values()), f'Required runtime support is missing: {enabled}'
           PY
           "$test_python" -m pytest -v "../tests/python/all-platform-minimal-test"
           if [[ -d ../tirx/tests/python/all-platform-minimal-test ]]; then
