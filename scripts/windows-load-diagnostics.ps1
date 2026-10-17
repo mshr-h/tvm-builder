@@ -16,7 +16,8 @@ print('TVM imported', flush=True)
 $commands = 'sxe -c "!analyze -v; .ecxr; kpn; lm; q" av; sxe -c "!analyze -v; .ecxr; kpn; lm; q" 0xc0000374; g'
 & $gflags /p /enable python.exe /full
 try {
-    & $cdb -G -logo $log -y $symbolPath -c $commands $python $probe
+    # Windows virtualenv Python launches the actual interpreter as a child.
+    & $cdb -o -g -G -logo $log -y $symbolPath -c $commands $python $probe
 } finally {
     & $gflags /p /disable python.exe
 }

@@ -292,6 +292,7 @@ jobs:
       - name: Diagnose Windows library loading
         if: failure() && inputs.diagnose-load
         continue-on-error: true
+        timeout-minutes: 5
         shell: pwsh
         run: .ci/scripts/windows-load-diagnostics.ps1
 
