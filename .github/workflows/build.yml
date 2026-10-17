@@ -358,7 +358,18 @@ jobs:
           uv pip install --python "$test_python" pytest ./*.whl
           uv pip check --python "$test_python"
           "$test_python" -X faulthandler -u -c "import tvm_ffi; print(tvm_ffi.__file__, flush=True)"
-          "$test_python" -X faulthandler -u -c "import tvm, tvm_ffi; print(tvm.__file__); print(tvm_ffi.__file__); print(tvm.__version__); tvm.support.describe(); assert tvm.runtime.enabled('llvm'), 'LLVM support is required'"
+          "$test_python" -X faulthandler -u - <<'PY'
+          import importlib
+          import tvm
+          import tvm_ffi
+          core = importlib.import_module('tvm_tirx') if importlib.util.find_spec('tvm_tirx') else tvm
+          print(tvm.__file__)
+          print(tvm_ffi.__file__)
+          print(core.__file__)
+          print(tvm.__version__)
+          core.support.describe()
+          assert core.runtime.enabled('llvm'), 'LLVM support is required'
+          PY
           "$test_python" -m pytest -v "../tests/python/all-platform-minimal-test"
           if [[ -d ../tirx/tests/python/all-platform-minimal-test ]]; then
             "$test_python" -m pytest -v "../tirx/tests/python/all-platform-minimal-test"

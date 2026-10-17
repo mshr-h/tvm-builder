@@ -5,7 +5,7 @@ $gflags = Join-Path $debuggers 'gflags.exe'
 if (-not (Test-Path $cdb)) { throw 'The Windows SDK x64 debugger is required' }
 $python = (Resolve-Path 'tmp/.test-venv/Scripts/python.exe').Path
 $log = Join-Path $env:GITHUB_WORKSPACE 'build-metrics/windows-load.log'
-$symbolPath = "$env:GITHUB_WORKSPACE/build/lib;$env:GITHUB_WORKSPACE/3rdparty/tvm-ffi/build/lib;srv*$env:RUNNER_TEMP/symbols*https://msdl.microsoft.com/download/symbols"
+$symbolPath = "$env:GITHUB_WORKSPACE/build/lib;$env:GITHUB_WORKSPACE/3rdparty/tvm-ffi/build/lib;$env:GITHUB_WORKSPACE/tirx/build/lib;$env:GITHUB_WORKSPACE/tirx/3rdparty/tvm-ffi/build/lib;srv*$env:RUNNER_TEMP/symbols*https://msdl.microsoft.com/download/symbols"
 $probe = Join-Path $env:RUNNER_TEMP 'tvm-load-probe.py'
 @'
 import tvm_ffi
