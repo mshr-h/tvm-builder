@@ -18,6 +18,12 @@ TVM uses the same static MSVC runtime on Windows. The optional Z3 solver is
 disabled there because the prebuilt static Z3 library uses the dynamic MSVC
 runtime. Windows wheel builds use MSVC with Ninja and four parallel build jobs.
 
+Windows applies a guarded FFI List buffer ownership fix: reallocation must
+replace the deleter along with the buffer so allocation and deallocation stay
+in the same DLL. Retaining the previous DLL's deleter caused heap corruption
+during TVM compiler initialization. A C++ regression checks the installed FFI
+headers after the clean wheel import and minimal tests.
+
 Pull requests validate all 15 configurations, including installing all local
 wheels with their dependencies, checking LLVM support, running TVM's minimal
 tests, and uploading the wheels. Releases run only on pushes to `main` and the
@@ -43,8 +49,8 @@ the source, headers, and compiler flags before reusing an object.
 
 The job summary and `build-metrics-*` artifacts record per-package build times,
 compiler cache hits/misses, restore time, cache size, source SHAs, and toolchain
-versions. Build requirements are installed from both upstream `pyproject.toml`
-files into the job's dedicated environment to avoid random isolated-build paths.
+versions. Build requirements are installed from each source project's
+`pyproject.toml` into the job's dedicated environment to avoid random isolated-build paths.
 Local source-built packages satisfy build requirements instead of downloading
 prebuilt core wheels.
 Every attempt removes the CMake build trees and validates the resulting wheels

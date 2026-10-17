@@ -8,7 +8,7 @@ $python = (Resolve-Path 'tmp/.test-venv/Scripts/python.exe').Path
 $ffiCmake = & $python -m tvm_ffi.config --cmakedir
 $ffiLib = & $python -m tvm_ffi.config --libdir
 cmake -S .ci/tests/cpp -B tmp/ffi-buffer-test -G Ninja `
-    "-Dtvm_ffi_DIR=$ffiCmake" -DCMAKE_BUILD_TYPE=Release `
+    "-Dtvm_ffi_DIR=$ffiCmake" "-DPython_EXECUTABLE=$python" -DCMAKE_BUILD_TYPE=Release `
     -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
 cmake --build tmp/ffi-buffer-test --parallel 4
 $env:PATH = "$ffiLib;$env:PATH"
