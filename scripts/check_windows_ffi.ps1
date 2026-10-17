@@ -23,4 +23,5 @@ $env:PATH = "$ffiLib;$env:PATH"
 & ./tmp/ffi-buffer-test/ffi_list_buffer_ownership.exe
 if ($hasTirx -eq '1') {
     & ./tmp/ffi-buffer-test/object_functor_buffer_ownership.exe
+    & ./tmp/ffi-buffer-test/constraint_context_buffer_ownership.exe
 }

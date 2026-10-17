@@ -27,6 +27,9 @@ The split TIRx build also binds `ObjectFunctor`'s vector allocator to the DLL
 that owns the table. This prevents a second DLL from freeing a buffer created
 while initializing inherited visitor dispatch. A C++ regression extends and
 finalizes a core-initialized table from a separate executable.
+The core also exports `ConstraintContext`'s destructor so its recovery vector
+is freed in the DLL that allocated it. A regression repeatedly enters and exits
+constraint scopes from a separate executable and checks constraint recovery.
 
 Pull requests validate all 15 configurations, including installing all local
 wheels with their dependencies, checking LLVM and the OS's required CUDA/Metal support, running TVM's minimal
